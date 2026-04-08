@@ -5,7 +5,6 @@ use ratatui::widgets::*;
 use std::time::Duration;
 use tracey_core::events::{AgentEvent, Submission, UiHandle};
 
-/// A display message in the chat history
 #[derive(Debug, Clone)]
 pub struct DisplayMessage {
     pub role: MessageRole,
@@ -31,6 +30,7 @@ pub struct App {
     pub is_processing: bool,
     pub should_quit: bool,
     pub graph_stats: String,
+    pub model_name: String,
     pub ui_handle: UiHandle,
 }
 
@@ -45,6 +45,7 @@ impl App {
             is_processing: false,
             should_quit: false,
             graph_stats: String::new(),
+            model_name: "tracey".into(),
             ui_handle,
         }
     }
@@ -95,18 +96,15 @@ impl App {
                         (KeyCode::Down, _) => {
                             self.scroll_offset = self.scroll_offset.saturating_sub(3);
                         }
-                        (KeyCode::Esc, _) => {
-                            if self.is_processing {
-                                let _ = self.ui_handle.submit(Submission::Interrupt).await;
-                                self.is_processing = false;
-                            }
+                        (KeyCode::Esc, _) if self.is_processing => {
+                            let _ = self.ui_handle.submit(Submission::Interrupt).await;
+                            self.is_processing = false;
                         }
                         _ => {}
                     }
                 }
             }
 
-            // Drain agent events
             while let Ok(event) = self.ui_handle.event_rx.try_recv() {
                 self.handle_agent_event(event);
             }
@@ -125,7 +123,6 @@ impl App {
     fn handle_agent_event(&mut self, event: AgentEvent) {
         match event {
             AgentEvent::AssistantChunk { text, .. } => {
-                // Append to existing assistant message or create new one
                 if let Some(last) = self.messages.last_mut() {
                     if last.role == MessageRole::Assistant {
                         last.content.push_str(&text);
@@ -149,17 +146,13 @@ impl App {
             AgentEvent::ToolCallEnd { result, is_error, .. } => {
                 if let Some(last) = self.messages.last_mut() {
                     if last.role == MessageRole::Tool {
-                        let preview = if result.len() > 200 {
-                            format!("{}...", &result[..200])
+                        let name = last.tool_name.clone().unwrap_or_default();
+                        let preview = truncate_lines(&result, 3);
+                        last.content = if is_error {
+                            format!("{name} failed: {preview}")
                         } else {
-                            result
+                            format!("{name} — {preview}")
                         };
-                        if is_error {
-                            last.content = format!("✗ {}", preview);
-                        } else {
-                            let name = last.tool_name.clone().unwrap_or_default();
-                            last.content = format!("✓ {} — {}", name, truncate_lines(&preview, 3));
-                        }
                     }
                 }
             }
@@ -168,14 +161,11 @@ impl App {
             }
             AgentEvent::TurnComplete { usage, .. } => {
                 self.is_processing = false;
-                if let Some(u) = usage {
-                    self.status = format!(
-                        "done — {} in, {} out tokens",
-                        u.input_tokens, u.output_tokens
-                    );
+                self.status = if let Some(u) = usage {
+                    format!("{} in · {} out", u.input_tokens, u.output_tokens)
                 } else {
-                    self.status = "done".into();
-                }
+                    "done".into()
+                };
             }
             AgentEvent::Error { message, .. } => {
                 self.messages.push(DisplayMessage {
@@ -197,9 +187,9 @@ impl App {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(5),    // chat messages
+                Constraint::Min(5),    // messages
                 Constraint::Length(3), // input
-                Constraint::Length(1), // status bar
+                Constraint::Length(1), // status
             ])
             .split(f.area());
 
@@ -209,88 +199,94 @@ impl App {
     }
 
     fn render_messages(&self, f: &mut Frame, area: Rect) {
+        let inner_width = area.width.saturating_sub(4) as usize;
         let mut lines: Vec<Line> = Vec::new();
 
         for msg in &self.messages {
             match &msg.role {
                 MessageRole::User => {
+                    // Hermes-inspired box: ╭─◉ you ─╮ ... ╰────╯
                     lines.push(Line::from(""));
-                    lines.push(Line::from(vec![
-                        Span::styled("  ▸ ", theme::user_style()),
-                        Span::styled("you", theme::user_style()),
-                    ]));
+                    let header = format!("╭─◉ you {}", "─".repeat(inner_width.saturating_sub(10)));
+                    lines.push(Line::from(Span::styled(header, theme::user_style())));
                     for line in msg.content.lines() {
                         lines.push(Line::from(vec![
-                            Span::raw("    "),
+                            Span::styled("│ ", Style::default().fg(theme::VIOLET_DIM)),
                             Span::styled(line.to_string(), Style::default().fg(theme::FG)),
                         ]));
                     }
+                    let footer = format!("╰{}", "─".repeat(inner_width.saturating_sub(2)));
+                    lines.push(Line::from(Span::styled(footer, Style::default().fg(theme::VIOLET_DIM))));
                 }
+
                 MessageRole::Assistant => {
+                    // ╭─◆ tracey ─╮ ... ╰────╯
                     lines.push(Line::from(""));
-                    lines.push(Line::from(vec![
-                        Span::styled("  ◆ ", Style::default().fg(theme::VIOLET)),
-                        Span::styled("tracey", Style::default().fg(theme::VIOLET).add_modifier(Modifier::BOLD)),
-                    ]));
+                    let header = format!("╭─◆ tracey {}", "─".repeat(inner_width.saturating_sub(13)));
+                    lines.push(Line::from(Span::styled(header, Style::default().fg(theme::VIOLET))));
                     for line in msg.content.lines() {
-                        // Basic code block detection
-                        if line.starts_with("```") {
-                            lines.push(Line::from(vec![
-                                Span::raw("    "),
-                                Span::styled(line.to_string(), Style::default().fg(theme::DIM)),
-                            ]));
-                        } else if line.starts_with("    ") || line.starts_with('\t') {
-                            // Indented code
-                            lines.push(Line::from(vec![
-                                Span::raw("    "),
-                                Span::styled(line.to_string(), Style::default().fg(theme::LAVENDER)),
-                            ]));
+                        let content_style = if line.starts_with("```") || line.starts_with("    ") || line.starts_with('\t') {
+                            Style::default().fg(theme::LAVENDER)
+                        } else if line.starts_with("- ") || line.starts_with("* ") {
+                            Style::default().fg(theme::FG)
+                        } else if line.starts_with('#') {
+                            Style::default().fg(theme::VIOLET_BRIGHT).add_modifier(Modifier::BOLD)
                         } else {
-                            lines.push(Line::from(vec![
-                                Span::raw("    "),
-                                Span::styled(line.to_string(), Style::default().fg(theme::FG)),
-                            ]));
-                        }
+                            Style::default().fg(theme::FG)
+                        };
+                        lines.push(Line::from(vec![
+                            Span::styled("│ ", Style::default().fg(theme::VIOLET_DIM)),
+                            Span::styled(line.to_string(), content_style),
+                        ]));
                     }
+                    let footer = format!("╰{}", "─".repeat(inner_width.saturating_sub(2)));
+                    lines.push(Line::from(Span::styled(footer, Style::default().fg(theme::VIOLET_DIM))));
                 }
+
                 MessageRole::Tool => {
-                    let icon = if msg.content.starts_with('✗') {
-                        Span::styled("  ✗ ", theme::error_style())
-                    } else if msg.content.starts_with('✓') {
-                        Span::styled("  ✓ ", Style::default().fg(theme::SUCCESS))
+                    // Compact tool display: ┊ ✓ tool_name — result preview
+                    let (icon, icon_color) = if msg.content.contains("failed") {
+                        ("✗", theme::ERROR)
+                    } else if msg.content.contains("calling") {
+                        ("⧗", theme::DIM)
                     } else {
-                        Span::styled("  ⧗ ", theme::tool_style())
-                    };
-                    let text_style = if msg.content.starts_with('✗') {
-                        theme::error_style()
-                    } else {
-                        theme::tool_style()
+                        ("✓", theme::SUCCESS)
                     };
                     lines.push(Line::from(vec![
-                        icon,
+                        Span::styled("┊ ", Style::default().fg(theme::VIOLET_DIM)),
+                        Span::styled(format!("{icon} "), Style::default().fg(icon_color)),
                         Span::styled(
-                            truncate_str(&msg.content, (area.width as usize).saturating_sub(8)),
-                            text_style,
+                            truncate_str(&msg.content, inner_width.saturating_sub(6)),
+                            Style::default().fg(theme::DIM),
                         ),
                     ]));
                 }
+
                 MessageRole::Error => {
                     lines.push(Line::from(""));
-                    lines.push(Line::from(vec![
-                        Span::styled("  ✗ error: ", theme::error_style()),
-                        Span::styled(&msg.content, Style::default().fg(theme::ERROR)),
-                    ]));
+                    let header = format!("╭─✗ error {}", "─".repeat(inner_width.saturating_sub(12)));
+                    lines.push(Line::from(Span::styled(header, theme::error_style())));
+                    for line in msg.content.lines() {
+                        lines.push(Line::from(vec![
+                            Span::styled("│ ", Style::default().fg(theme::ERROR)),
+                            Span::styled(line.to_string(), Style::default().fg(theme::ERROR)),
+                        ]));
+                    }
+                    let footer = format!("╰{}", "─".repeat(inner_width.saturating_sub(2)));
+                    lines.push(Line::from(Span::styled(footer, Style::default().fg(theme::ERROR))));
                 }
+
                 MessageRole::GraphUpdate => {
                     lines.push(Line::from(vec![
-                        Span::styled("  ◈ ", theme::graph_update_style()),
-                        Span::styled(&msg.content, theme::graph_update_style()),
+                        Span::styled("┊ ", Style::default().fg(theme::VIOLET_DIM)),
+                        Span::styled("◈ ", Style::default().fg(theme::LAVENDER)),
+                        Span::styled(&msg.content, Style::default().fg(theme::LAVENDER)),
                     ]));
                 }
             }
         }
 
-        // Auto-scroll: if we have more lines than visible, scroll to bottom
+        // Auto-scroll
         let visible_height = area.height.saturating_sub(2) as usize;
         let total_lines = lines.len();
         let auto_scroll = if total_lines > visible_height && self.scroll_offset == 0 {
@@ -302,8 +298,11 @@ impl App {
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(theme::border_style())
-            .title(Span::styled(" tracey ", Style::default().fg(theme::VIOLET).add_modifier(Modifier::BOLD)))
-            .title_alignment(Alignment::Left);
+            .border_type(BorderType::Rounded)
+            .title(Span::styled(
+                " ◆ tracey ",
+                Style::default().fg(theme::VIOLET).add_modifier(Modifier::BOLD),
+            ));
 
         let paragraph = Paragraph::new(lines)
             .block(block)
@@ -314,18 +313,14 @@ impl App {
     }
 
     fn render_input(&self, f: &mut Frame, area: Rect) {
-        let (display_text, input_style) = if self.is_processing {
+        let (display_text, text_style) = if self.is_processing {
             let spinners = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
             let s = spinners[self.spinner_state % spinners.len()];
-            (
-                format!(" {s} {}", self.status),
-                Style::default().fg(theme::DIM),
-            )
+            (format!("{s} {}", self.status), Style::default().fg(theme::VIOLET_BRIGHT))
+        } else if self.input.is_empty() {
+            ("ask tracey anything...".into(), Style::default().fg(theme::DIM))
         } else {
-            (
-                format!(" {}", self.input),
-                Style::default().fg(theme::FG),
-            )
+            (self.input.clone(), Style::default().fg(theme::FG))
         };
 
         let border_style = if self.is_processing {
@@ -334,30 +329,29 @@ impl App {
             theme::active_border_style()
         };
 
-        let prompt_char = if self.is_processing { "" } else { "▸" };
-
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(border_style)
+            .border_type(BorderType::Rounded)
             .title(Span::styled(
-                format!(" {prompt_char} "),
+                " ▸ ",
                 Style::default().fg(theme::VIOLET_BRIGHT),
             ));
 
-        let input = Paragraph::new(Span::styled(display_text, input_style)).block(block);
+        let input = Paragraph::new(Span::styled(format!(" {display_text}"), text_style))
+            .block(block);
 
         f.render_widget(input, area);
 
-        // Cursor position
-        if !self.is_processing {
+        if !self.is_processing && !self.input.is_empty() {
             f.set_cursor_position((area.x + self.input.len() as u16 + 2, area.y + 1));
         }
     }
 
     fn render_status(&self, f: &mut Frame, area: Rect) {
         let mut spans = vec![
-            Span::styled(" tracey ", theme::status_bar_style()),
-            Span::raw(" "),
+            Span::styled(" ◆ tracey ", theme::status_bar_style()),
+            Span::styled(" ", Style::default()),
         ];
 
         if !self.graph_stats.is_empty() {
@@ -370,19 +364,15 @@ impl App {
 
         spans.push(Span::styled(&self.status, Style::default().fg(theme::DIM)));
 
-        // Right-aligned help hint
-        let help = " ctrl+c: quit │ ↑↓: scroll ";
-        let help_width = help.len() as u16;
-        let used_width: u16 = spans.iter().map(|s| s.width() as u16).sum();
-        let remaining = area.width.saturating_sub(used_width + help_width);
-
+        let help = " ^C quit · ↑↓ scroll ";
+        let used: u16 = spans.iter().map(|s| s.width() as u16).sum();
+        let remaining = area.width.saturating_sub(used + help.len() as u16);
         if remaining > 0 {
             spans.push(Span::raw(" ".repeat(remaining as usize)));
         }
         spans.push(Span::styled(help, Style::default().fg(theme::DIM)));
 
-        let status = Paragraph::new(Line::from(spans));
-        f.render_widget(status, area);
+        f.render_widget(Paragraph::new(Line::from(spans)), area);
     }
 }
 
@@ -399,7 +389,9 @@ fn truncate_lines(s: &str, max_lines: usize) -> String {
 fn truncate_str(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         s.to_string()
+    } else if max_len > 3 {
+        format!("{}...", &s[..max_len - 3])
     } else {
-        format!("{}...", &s[..max_len.saturating_sub(3)])
+        s[..max_len].to_string()
     }
 }
