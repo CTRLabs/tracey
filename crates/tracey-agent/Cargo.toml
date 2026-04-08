@@ -1,0 +1,22 @@
+[package]
+name = "tracey-agent"
+version = "0.1.0"
+edition = "2021"
+description = "OODA-C agent loop for Tracey"
+
+[dependencies]
+tracey-core = { workspace = true }
+tracey-config = { workspace = true }
+tracey-llm = { workspace = true }
+tracey-tools = { workspace = true }
+tracey-graph = { workspace = true }
+tracey-memory = { workspace = true }
+tracey-session = { workspace = true }
+tracey-sandbox = { workspace = true }
+tracey-hooks = { workspace = true }
+tracey-skills = { workspace = true }
+tracey-search = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

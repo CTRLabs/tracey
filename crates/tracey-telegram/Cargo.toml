@@ -1,0 +1,12 @@
+[package]
+name = "tracey-telegram"
+version = "0.1.0"
+edition = "2021"
+description = "Telegram bot interface for Tracey"
+
+[dependencies]
+tracey-core = { workspace = true }
+tracey-agent = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

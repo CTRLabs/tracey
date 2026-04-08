@@ -1,0 +1,80 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/tracey-core",
+    "crates/tracey-config",
+    "crates/tracey-llm",
+    "crates/tracey-tools",
+    "crates/tracey-graph",
+    "crates/tracey-memory",
+    "crates/tracey-session",
+    "crates/tracey-sandbox",
+    "crates/tracey-agent",
+    "crates/tracey-tui",
+    "crates/tracey-telegram",
+    "crates/tracey-ast",
+    "crates/tracey-search",
+    "crates/tracey-hooks",
+    "crates/tracey-skills",
+    "crates/tracey-cli",
+]
+
+[workspace.dependencies]
+# Async
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# HTTP
+reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
+eventsource-stream = "0.2"
+
+# Graph
+petgraph = "0.6"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# UUID
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Database
+rusqlite = { version = "0.31", features = ["bundled", "vtab"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Internal crates
+tracey-core = { path = "crates/tracey-core" }
+tracey-config = { path = "crates/tracey-config" }
+tracey-llm = { path = "crates/tracey-llm" }
+tracey-tools = { path = "crates/tracey-tools" }
+tracey-graph = { path = "crates/tracey-graph" }
+tracey-memory = { path = "crates/tracey-memory" }
+tracey-session = { path = "crates/tracey-session" }
+tracey-sandbox = { path = "crates/tracey-sandbox" }
+tracey-agent = { path = "crates/tracey-agent" }
+tracey-tui = { path = "crates/tracey-tui" }
+tracey-telegram = { path = "crates/tracey-telegram" }
+tracey-ast = { path = "crates/tracey-ast" }
+tracey-search = { path = "crates/tracey-search" }
+tracey-hooks = { path = "crates/tracey-hooks" }
+tracey-skills = { path = "crates/tracey-skills" }
+tracey-cli = { path = "crates/tracey-cli" }
