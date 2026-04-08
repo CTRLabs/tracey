@@ -1,5 +1,7 @@
 use clap::Parser;
+use std::sync::{Arc, RwLock};
 use tracey_core::events::EventChannel;
+use tracey_graph::GraphStore;
 use tracey_tui::logo;
 
 #[derive(Parser)]
@@ -78,11 +80,27 @@ async fn main() -> anyhow::Result<()> {
     let instructions = tracey_config::instruction_files::load_instructions(&cwd)?;
     let mut system_prompt = build_system_prompt(&instructions, &tools);
 
+    // Create causal graph (Arc<RwLock<>> for concurrent access)
+    let graph = Arc::new(RwLock::new(GraphStore::new()));
+    let session_counter = 1_u64; // TODO: load from persistence
+
+    tracing::info!(
+        "Graph initialized: {} nodes, {} edges",
+        graph.read().unwrap().node_count(),
+        graph.read().unwrap().edge_count()
+    );
+
     // Create SQ/EQ channels
     let (agent_handle, ui_handle) = EventChannel::new(256);
 
     // Spawn agent
-    let mut agent = tracey_agent::Agent::new(router, tools, system_prompt);
+    let mut agent = tracey_agent::Agent::new(
+        router,
+        tools,
+        graph.clone(),
+        system_prompt,
+        session_counter,
+    );
     let agent_task = tokio::spawn(async move {
         agent.run(agent_handle).await;
     });

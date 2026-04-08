@@ -2207,6 +2207,7 @@ dependencies = [
  "tracey-agent",
  "tracey-config",
  "tracey-core",
+ "tracey-graph",
  "tracey-llm",
  "tracey-session",
  "tracey-telegram",
