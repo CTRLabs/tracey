@@ -1,0 +1,12 @@
+[package]
+name = "tracey-sandbox"
+version = "0.1.0"
+edition = "2021"
+description = "Sandboxing and permissions for Tracey"
+
+[dependencies]
+tracey-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

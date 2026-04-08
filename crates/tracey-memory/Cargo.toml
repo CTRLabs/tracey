@@ -1,0 +1,13 @@
+[package]
+name = "tracey-memory"
+version = "0.1.0"
+edition = "2021"
+description = "MAGMA graph-structured memory for Tracey"
+
+[dependencies]
+tracey-core = { workspace = true }
+tracey-graph = { workspace = true }
+tracey-search = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }

@@ -1,0 +1,12 @@
+[package]
+name = "tracey-search"
+version = "0.1.0"
+edition = "2021"
+description = "Semantic and text search for Tracey"
+
+[dependencies]
+tracey-core = { workspace = true }
+tracey-ast = { workspace = true }
+serde = { workspace = true }
+rusqlite = { workspace = true }
+tracing = { workspace = true }

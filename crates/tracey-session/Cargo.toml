@@ -1,0 +1,13 @@
+[package]
+name = "tracey-session"
+version = "0.1.0"
+edition = "2021"
+description = "Session persistence for Tracey"
+
+[dependencies]
+tracey-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rusqlite = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }

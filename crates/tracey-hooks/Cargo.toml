@@ -1,0 +1,12 @@
+[package]
+name = "tracey-hooks"
+version = "0.1.0"
+edition = "2021"
+description = "Hook system for Tracey"
+
+[dependencies]
+tracey-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

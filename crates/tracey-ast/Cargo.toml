@@ -1,0 +1,11 @@
+[package]
+name = "tracey-ast"
+version = "0.1.0"
+edition = "2021"
+description = "AST-based code graph for Tracey"
+
+[dependencies]
+tracey-core = { workspace = true }
+tracey-graph = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
