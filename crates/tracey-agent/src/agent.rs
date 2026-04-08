@@ -2,7 +2,7 @@ use futures::StreamExt;
 use std::sync::{Arc, RwLock};
 use tracey_core::events::{AgentEvent, AgentHandle, Submission};
 use tracey_core::id::{SessionId, TurnId};
-use tracey_core::traits::{StreamChunk, ToolContext, ToolOutput, ToolSchema};
+use tracey_core::traits::{StreamChunk, ToolContext, ToolOutput};
 use tracey_core::types::{ContentBlock, Message, MessageRole, ToolCall, UsageStats};
 use tracey_core::TraceyResult;
 use tracey_graph::{

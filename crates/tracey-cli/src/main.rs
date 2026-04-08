@@ -78,7 +78,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Load instruction files
     let instructions = tracey_config::instruction_files::load_instructions(&cwd)?;
-    let mut system_prompt = build_system_prompt(&instructions, &tools);
+    let system_prompt = build_system_prompt(&instructions, &tools);
 
     // Load or create causal graph with SQLite persistence
     let graph_db_path = tracey_graph::graph_db_path(&cwd);
@@ -207,6 +207,12 @@ async fn main() -> anyhow::Result<()> {
         let mut terminal = ratatui::Terminal::new(backend)?;
 
         let mut app = tracey_tui::app::App::new(ui_handle);
+        app.set_model_info(&config.routing.default_model, &config.provider.default_provider);
+        app.set_graph_stats(
+            graph.read().unwrap().node_count(),
+            graph.read().unwrap().edge_count(),
+        );
+        app.session_number = session_counter;
         let result = app.run(&mut terminal).await;
 
         // Restore terminal
