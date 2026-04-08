@@ -80,12 +80,28 @@ async fn main() -> anyhow::Result<()> {
     let instructions = tracey_config::instruction_files::load_instructions(&cwd)?;
     let mut system_prompt = build_system_prompt(&instructions, &tools);
 
-    // Create causal graph (Arc<RwLock<>> for concurrent access)
-    let graph = Arc::new(RwLock::new(GraphStore::new()));
-    let session_counter = 1_u64; // TODO: load from persistence
+    // Load or create causal graph with SQLite persistence
+    let graph_db_path = tracey_graph::graph_db_path(&cwd);
+    let graph_db = tracey_graph::GraphDb::open(&graph_db_path)?;
+    let session_counter = graph_db.load_session_counter().unwrap_or(0) + 1;
+
+    let loaded_graph = if graph_db_path.exists() {
+        match graph_db.load() {
+            Ok(g) if g.node_count() > 0 => {
+                tracing::info!("Loaded graph: {} nodes, {} edges", g.node_count(), g.edge_count());
+                g
+            }
+            _ => GraphStore::new(),
+        }
+    } else {
+        GraphStore::new()
+    };
+
+    let graph = Arc::new(RwLock::new(loaded_graph));
 
     tracing::info!(
-        "Graph initialized: {} nodes, {} edges",
+        "Session {} — graph: {} nodes, {} edges",
+        session_counter,
         graph.read().unwrap().node_count(),
         graph.read().unwrap().edge_count()
     );
@@ -193,6 +209,19 @@ async fn main() -> anyhow::Result<()> {
     }
 
     agent_task.await?;
+
+    // Save graph to SQLite at session end
+    {
+        let g = graph.read().unwrap();
+        if g.node_count() > 0 {
+            if let Err(e) = graph_db.save(&g) {
+                tracing::warn!("Failed to save graph: {e}");
+            } else {
+                tracing::info!("Graph saved: {} nodes, {} edges", g.node_count(), g.edge_count());
+            }
+        }
+        graph_db.save_session_counter(session_counter).ok();
+    }
 
     Ok(())
 }
