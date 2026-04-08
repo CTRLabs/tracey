@@ -1,1 +1,2 @@
-// tracey-tui
+pub mod app;
+pub mod logo;
