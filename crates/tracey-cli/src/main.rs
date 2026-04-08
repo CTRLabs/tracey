@@ -99,6 +99,19 @@ async fn main() -> anyhow::Result<()> {
 
     let graph = Arc::new(RwLock::new(loaded_graph));
 
+    // Build code graph from AST if this is a code project
+    let code_stats = tracey_ast::build_code_graph_async(&cwd, &graph).await;
+    if code_stats.files_parsed > 0 {
+        tracing::info!(
+            "Code graph: {} files parsed, {} nodes, {} edges ({:?}) [{}]",
+            code_stats.files_parsed,
+            code_stats.nodes_created,
+            code_stats.edges_created,
+            code_stats.duration,
+            code_stats.languages_detected.join(", ")
+        );
+    }
+
     tracing::info!(
         "Session {} — graph: {} nodes, {} edges",
         session_counter,
