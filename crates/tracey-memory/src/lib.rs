@@ -1,1 +1,1 @@
-// tracey-memory
+// MAGMA memory — Phase 2

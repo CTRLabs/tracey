@@ -1,1 +1,1 @@
-// tracey-hooks
+// Hook system — Phase 3

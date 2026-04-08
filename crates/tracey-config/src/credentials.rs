@@ -49,6 +49,12 @@ pub enum PoolStrategy {
     Random,
 }
 
+impl Default for CredentialPool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CredentialPool {
     pub fn new() -> Self {
         Self {
