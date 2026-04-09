@@ -22,20 +22,20 @@ pub const CHROME: [Color; 12] = [
     Color::Rgb(15, 8, 35),      // 11: void
 ];
 
-// ANSI versions of the chrome stops (for non-ratatui contexts)
+// ANSI 256-color versions (works in tmux and all terminals)
 pub const ANSI_CHROME: [&str; 12] = [
-    "\x1b[38;2;245;242;255m",
-    "\x1b[38;2;230;220;255m",
-    "\x1b[38;2;210;190;255m",
-    "\x1b[38;2;180;160;245m",
-    "\x1b[38;2;155;130;240m",
-    "\x1b[38;2;139;92;246m",
-    "\x1b[38;2;110;70;220m",
-    "\x1b[38;2;85;50;190m",
-    "\x1b[38;2;65;35;150m",
-    "\x1b[38;2;45;25;100m",
-    "\x1b[38;2;30;15;60m",
-    "\x1b[38;2;15;8;35m",
+    "\x1b[38;5;189m",  // near-white lavender
+    "\x1b[38;5;183m",  // bright lavender
+    "\x1b[38;5;147m",  // chrome light
+    "\x1b[38;5;141m",  // light violet
+    "\x1b[38;5;135m",  // mid bright (primary)
+    "\x1b[38;5;135m",  // core violet
+    "\x1b[38;5;98m",   // deep mid
+    "\x1b[38;5;97m",   // deep violet
+    "\x1b[38;5;55m",   // dark
+    "\x1b[38;5;54m",   // shadow
+    "\x1b[38;5;53m",   // deep shadow
+    "\x1b[38;5;52m",   // void
 ];
 
 // Primary aliases (for backward compat and quick access)
@@ -186,12 +186,12 @@ pub fn header_style() -> Style {
 // ANSI ESCAPE CODES (for non-ratatui contexts)
 // ═══════════════════════════════════════════════════════════════
 
-pub const ANSI_VIOLET: &str = "\x1b[38;2;139;92;246m";
-pub const ANSI_VIOLET_BRIGHT: &str = "\x1b[38;2;180;160;245m";
-pub const ANSI_VIOLET_DIM: &str = "\x1b[38;2;85;50;190m";
-pub const ANSI_LAVENDER: &str = "\x1b[38;2;210;190;255m";
-pub const ANSI_HIGHLIGHT: &str = "\x1b[38;2;245;242;255m";
-pub const ANSI_DIM: &str = "\x1b[38;2;100;100;115m";
-pub const ANSI_WHITE: &str = "\x1b[38;2;229;229;234m";
+pub const ANSI_VIOLET: &str = "\x1b[38;5;135m";
+pub const ANSI_VIOLET_BRIGHT: &str = "\x1b[38;5;141m";
+pub const ANSI_VIOLET_DIM: &str = "\x1b[38;5;97m";
+pub const ANSI_LAVENDER: &str = "\x1b[38;5;183m";
+pub const ANSI_HIGHLIGHT: &str = "\x1b[38;5;189m";
+pub const ANSI_DIM: &str = "\x1b[90m";
+pub const ANSI_WHITE: &str = "\x1b[37m";
 pub const ANSI_BOLD: &str = "\x1b[1m";
 pub const ANSI_RESET: &str = "\x1b[0m";

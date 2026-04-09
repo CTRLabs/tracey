@@ -10,15 +10,14 @@ const LOGO_LINES: [&str; 6] = [
     "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
 ];
 
-// Per-LINE gradient (not per-character — block chars break with per-char ANSI)
-// Bright lavender → core violet → deep violet (liquid chrome top-to-bottom)
+// Per-LINE gradient using ANSI 256-color (works in tmux and all terminals)
 const LINE_COLORS: [&str; 6] = [
-    "\x1b[38;2;230;220;255m",  // bright lavender
-    "\x1b[38;2;200;180;255m",  // light violet
-    "\x1b[38;2;170;140;250m",  // mid violet
-    "\x1b[38;2;139;92;246m",   // core violet
-    "\x1b[38;2;110;70;220m",   // deep violet
-    "\x1b[38;2;85;50;190m",    // darker violet
+    "\x1b[38;5;183m",  // light lavender
+    "\x1b[38;5;141m",  // light violet
+    "\x1b[38;5;135m",  // violet (primary)
+    "\x1b[38;5;98m",   // medium purple
+    "\x1b[38;5;97m",   // dark violet
+    "\x1b[38;5;55m",   // deep purple
 ];
 
 /// Print the logo with per-LINE liquid chrome gradient
