@@ -1,1 +1,3 @@
-// Hook system — Phase 3
+pub mod runner;
+
+pub use runner::{HookAction, HookConfig, HookEvent, HookResult, HookRunner};
