@@ -7,11 +7,18 @@ pub struct SetupWizard;
 
 impl SetupWizard {
     pub fn run() -> TraceyResult<()> {
+        let v = "\x1b[38;2;139;92;246m";  // violet
+        let vb = "\x1b[38;2;167;139;250m"; // violet bright
+        let vd = "\x1b[38;2;109;40;217m";  // violet dim
+        let w = "\x1b[1;37m";
+        let d = "\x1b[90m";
+        let r = "\x1b[0m";
+
         println!();
-        println!("  \x1b[36m╔══════════════════════════════════════╗\x1b[0m");
-        println!("  \x1b[36m║\x1b[0m    \x1b[1;37mTracey Setup Wizard\x1b[0m              \x1b[36m║\x1b[0m");
-        println!("  \x1b[36m║\x1b[0m    \x1b[90mtracing causal connections\x1b[0m       \x1b[36m║\x1b[0m");
-        println!("  \x1b[36m╚══════════════════════════════════════╝\x1b[0m");
+        println!("  {vd}╭──────────────────────────────────────╮{r}");
+        println!("  {vd}│{r}  {v}◆{r} {w}Tracey Setup Wizard{r}              {vd}│{r}");
+        println!("  {vd}│{r}    {d}tracing causal connections{r}       {vd}│{r}");
+        println!("  {vd}╰──────────────────────────────────────╯{r}");
         println!();
 
         let provider = Self::select_provider()?;
@@ -30,24 +37,24 @@ impl SetupWizard {
         pool.save()?;
 
         println!();
-        println!("  \x1b[32m✓\x1b[0m Config saved to \x1b[90m{}\x1b[0m", config_path.display());
-        println!("  \x1b[32m✓\x1b[0m Credentials saved");
+        println!("  \x1b[38;2;34;197;94m✓\x1b[0m Config saved to \x1b[90m{}\x1b[0m", config_path.display());
+        println!("  \x1b[38;2;34;197;94m✓\x1b[0m Credentials saved");
         println!();
-        println!("  Run \x1b[1mtracey\x1b[0m to start!");
+        println!("  Run \x1b[38;2;139;92;246m\x1b[1mtracey\x1b[0m to start!");
         println!();
 
         Ok(())
     }
 
     fn select_provider() -> TraceyResult<ProviderEntry> {
-        println!("  \x1b[1mSelect your LLM provider:\x1b[0m");
+        println!("  \x1b[38;2;167;139;250mSelect your LLM provider:\x1b[0m");
         println!();
-        println!("    \x1b[36m1\x1b[0m) Anthropic (Claude)");
-        println!("    \x1b[36m2\x1b[0m) OpenAI (GPT)");
-        println!("    \x1b[36m3\x1b[0m) Google (Gemini)");
-        println!("    \x1b[36m4\x1b[0m) Ollama (local)");
-        println!("    \x1b[36m5\x1b[0m) OpenRouter");
-        println!("    \x1b[36m6\x1b[0m) Custom (OpenAI-compatible)");
+        println!("    \x1b[38;2;139;92;246m1\x1b[0m) Anthropic (Claude)");
+        println!("    \x1b[38;2;139;92;246m2\x1b[0m) OpenAI (GPT)");
+        println!("    \x1b[38;2;139;92;246m3\x1b[0m) Google (Gemini)");
+        println!("    \x1b[38;2;139;92;246m4\x1b[0m) Ollama (local)");
+        println!("    \x1b[38;2;139;92;246m5\x1b[0m) OpenRouter");
+        println!("    \x1b[38;2;139;92;246m6\x1b[0m) Custom (OpenAI-compatible)");
         println!();
 
         let choice = Self::prompt("  Choice [1]: ")?;
@@ -142,12 +149,12 @@ impl SetupWizard {
             ],
         };
 
-        println!("  \x1b[1mSelect model:\x1b[0m");
+        println!("  \x1b[38;2;167;139;250mSelect model:\x1b[0m");
         println!();
         for (num, _, desc) in &defaults {
             println!("    \x1b[36m{num}\x1b[0m) {desc}");
         }
-        println!("    \x1b[36mc\x1b[0m) Custom model name");
+        println!("    \x1b[38;2;139;92;246mc\x1b[0m) Custom model name");
         println!();
 
         let choice = Self::prompt("  Choice [1]: ")?;

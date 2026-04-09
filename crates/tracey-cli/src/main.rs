@@ -192,11 +192,31 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     } else {
-        // Interactive TUI mode
-        if config.ui.show_logo && config.ui.animations {
-            logo::animate_startup().await;
-        } else if config.ui.show_logo {
-            logo::print_startup_banner();
+        // Interactive TUI mode — show welcome banner
+        {
+            let g = graph.read().unwrap();
+            let banner_info = tracey_tui::banner::BannerInfo {
+                model: config.routing.default_model.clone(),
+                provider: config.provider.default_provider.clone(),
+                cwd: cwd.to_string_lossy().to_string(),
+                graph_nodes: g.node_count(),
+                graph_edges: g.edge_count(),
+                languages: if code_stats.files_parsed > 0 {
+                    code_stats.languages_detected.join(", ")
+                } else {
+                    String::new()
+                },
+                tools: vec!["Read".into(), "Write".into(), "Edit".into(), "Bash".into(), "Glob".into(), "Grep".into()],
+                skill_count: 0, // TODO: count loaded skills
+            };
+
+            if config.ui.show_logo && config.ui.animations {
+                logo::animate_startup().await;
+            }
+            tracey_tui::banner::print_welcome_banner(&banner_info);
+
+            // Pause briefly to let user read the banner
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
         }
 
         // Init terminal
