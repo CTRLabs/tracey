@@ -6,6 +6,7 @@ description = "Skill loading and management for Tracey"
 
 [dependencies]
 tracey-core = { workspace = true }
+tracey-config = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }

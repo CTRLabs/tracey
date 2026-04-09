@@ -1,1 +1,3 @@
-// Skill loading — Phase 3
+pub mod loader;
+
+pub use loader::{Skill, SkillLoader, SkillTrigger};
