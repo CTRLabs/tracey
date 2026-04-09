@@ -336,6 +336,38 @@ impl Agent {
                     }
                 }
 
+                // === IMPACT PREVIEW for Edit/Write (the graph thesis in action) ===
+                if tc.name == "Edit" || tc.name == "Write" {
+                    if let Some(path) = tc.arguments["file_path"].as_str() {
+                        let impact_msg = {
+                            let graph = self.graph.read().unwrap();
+                            if let Some(file_id) = graph.find_id_by_label(path) {
+                                let impact = graph.impact_zone(&file_id);
+                                if impact.len() > 2 {
+                                    let preview: Vec<String> = impact
+                                        .iter()
+                                        .take(5)
+                                        .map(|(n, conf)| format!("{} ({:.0}%)", n.label, conf * 100.0))
+                                        .collect();
+                                    Some(format!(
+                                        "⚡ impact: {} files affected — {}",
+                                        impact.len(),
+                                        preview.join(", ")
+                                    ))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        }; // guard dropped
+
+                        if let Some(msg) = impact_msg {
+                            let _ = handle.emit(AgentEvent::Status { message: msg }).await;
+                        }
+                    }
+                }
+
                 // Execute tool
                 let result = self.tools.execute(&tc.name, tc.arguments.clone(), &ctx).await;
 
@@ -395,6 +427,27 @@ impl Agent {
                 let tool_msg = Message::tool_result(tc.id, &tool_output.content, tool_output.is_error);
                 self.persist_message(&tool_msg);
                 self.messages.push(tool_msg);
+            }
+
+            // === PHASE 5: VERIFY (every 5 iterations) ===
+            if iteration > 0 && iteration % 5 == 0 {
+                let verify_result = {
+                    let graph = self.graph.read().unwrap();
+                    tracey_graph::verify_graph(&graph)
+                }; // RwLockReadGuard dropped before await
+
+                if !verify_result.contradictions.is_empty() {
+                    let _ = handle.emit(AgentEvent::GraphUpdate {
+                        node_id: None,
+                        description: format!(
+                            "⚠ {} contradictions detected in graph",
+                            verify_result.contradictions.len()
+                        ),
+                    }).await;
+                }
+                for warning in &verify_result.warnings {
+                    tracing::warn!("Graph: {warning}");
+                }
             }
         }
 
