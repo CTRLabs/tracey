@@ -2,7 +2,6 @@ use crate::theme::{self, *};
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
-/// Information for the welcome panel
 pub struct WelcomeInfo {
     pub model: String,
     pub provider: String,
@@ -14,130 +13,146 @@ pub struct WelcomeInfo {
     pub session_number: u64,
 }
 
-/// Render the Hermes-style welcome panel that fills the chat area.
-/// Two-column layout: left (logo art + info) | right (tools + graph + commands)
+/// Render a premium welcome panel inspired by Hermes Agent.
+/// Features: massive ASCII logo, two-column info panel, chrome colors.
 pub fn render_welcome(f: &mut Frame, area: Rect, info: &WelcomeInfo) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(CHROME[7]))
-        .border_type(BorderType::Rounded)
-        .title(Span::styled(
-            format!(" ◆ tracey v{} ", env!("CARGO_PKG_VERSION")),
-            Style::default().fg(CHROME[2]).add_modifier(Modifier::BOLD),
-        ))
-        .title_alignment(Alignment::Center);
+    // Split into: logo area (top) | info panel (bottom)
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(10), // ASCII art logo
+            Constraint::Length(1),  // separator
+            Constraint::Min(10),   // two-column info panel
+            Constraint::Length(2), // welcome message
+        ])
+        .split(area);
 
-    let inner = block.inner(area);
-    f.render_widget(block, area);
-
-    if inner.height < 10 || inner.width < 40 {
-        // Too small — just show minimal info
-        let text = Paragraph::new(vec![
-            Line::from(Span::styled("◆ tracey", Style::default().fg(CHROME[3]).add_modifier(Modifier::BOLD))),
-            Line::from(Span::styled(
-                format!("{} · {}", info.model, info.provider),
-                Style::default().fg(DIM),
-            )),
-        ]);
-        f.render_widget(text, inner);
-        return;
-    }
-
-    // Split into left (60%) and right (40%)
-    let cols = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(55), Constraint::Percentage(45)])
-        .split(inner);
-
-    render_left_column(f, cols[0], info);
-    render_right_column(f, cols[1], info);
+    render_logo(f, chunks[0]);
+    render_separator(f, chunks[1], info);
+    render_info_panel(f, chunks[2], info);
+    render_welcome_message(f, chunks[3]);
 }
 
-fn render_left_column(f: &mut Frame, area: Rect, info: &WelcomeInfo) {
-    let mut lines: Vec<Line> = Vec::new();
+/// Render the massive ASCII art logo with gradient colors
+fn render_logo(f: &mut Frame, area: Rect) {
+    // Large figlet-style "TRACEY" — fills the width
+    let logo_lines: Vec<Line> = vec![
+        Line::from(""),
+        make_gradient_line("  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗", 0),
+        make_gradient_line("  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝", 1),
+        make_gradient_line("     ██║   ██████╔╝███████║██║     █████╗   ╚████╔╝ ", 2),
+        make_gradient_line("     ██║   ██╔══██╗██╔══██║██║     ██╔══╝    ╚██╔╝  ", 3),
+        make_gradient_line("     ██║   ██║  ██║██║  ██║╚██████╗███████╗   ██║   ", 4),
+        make_gradient_line("     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ", 5),
+        Line::from(""),
+        // Causal graph trace art
+        Line::from(vec![
+            Span::styled("        ◉", Style::default().fg(CHROME[1])),
+            Span::styled("──╌╌──▸", Style::default().fg(CHROME[5])),
+            Span::styled(" ◉", Style::default().fg(CHROME[1])),
+            Span::styled("──╌╌──▸", Style::default().fg(CHROME[5])),
+            Span::styled(" ◉", Style::default().fg(CHROME[1])),
+            Span::raw("     "),
+            Span::styled("tracing causal connections", Style::default().fg(CHROME[3]).add_modifier(Modifier::ITALIC)),
+        ]),
+    ];
 
-    // Causal graph ASCII art (circuit trace style)
-    lines.push(Line::from(""));
-    lines.push(Line::from(vec![
-        Span::styled("       ◉", Style::default().fg(CHROME[2])),
-        Span::styled("──╌╌──▸", Style::default().fg(CHROME[7])),
-        Span::styled(" ◉", Style::default().fg(CHROME[2])),
-        Span::styled("──╌╌──▸", Style::default().fg(CHROME[7])),
-        Span::styled(" ◉", Style::default().fg(CHROME[2])),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("                └──╌╌──▸", Style::default().fg(CHROME[7])),
-        Span::styled(" ◉", Style::default().fg(CHROME[2])),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("       ◉", Style::default().fg(CHROME[3])),
-        Span::styled("──╌╌──▸", Style::default().fg(CHROME[8])),
-        Span::styled(" ◉", Style::default().fg(CHROME[3])),
-    ]));
-    lines.push(Line::from(""));
-    lines.push(Line::from(""));
-
-    // Model and provider info
-    lines.push(Line::from(vec![
-        Span::styled("  ", Style::default()),
-        Span::styled(&info.model, Style::default().fg(CHROME[1]).add_modifier(Modifier::BOLD)),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("  ", Style::default()),
-        Span::styled(&info.provider, Style::default().fg(CHROME[4])),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("  ", Style::default()),
-        Span::styled(truncate_str(&info.cwd, area.width as usize - 4), Style::default().fg(DIM)),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("  Session: ", Style::default().fg(DIM)),
-        Span::styled(format!("#{}", info.session_number), Style::default().fg(CHROME[4])),
-    ]));
-
-    let paragraph = Paragraph::new(lines);
+    let paragraph = Paragraph::new(logo_lines).alignment(Alignment::Left);
     f.render_widget(paragraph, area);
 }
 
-fn render_right_column(f: &mut Frame, area: Rect, info: &WelcomeInfo) {
+/// Create a gradient line — each character gets a different chrome color
+fn make_gradient_line(text: &str, line_idx: usize) -> Line<'static> {
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len().max(1);
+
+    // Shift the gradient based on line index for a wave effect
+    let offset = line_idx as f64 * 0.08;
+
+    let spans: Vec<Span> = chars
+        .iter()
+        .enumerate()
+        .map(|(i, ch)| {
+            let t = ((i as f64 / len as f64) + offset).min(1.0);
+            // Non-linear: quadratic ease into shadows
+            let t_curved = (t * t * 0.6 + t * 0.4).min(1.0);
+            let idx_f = t_curved * 7.0; // Use first 8 stops (the bright ones)
+            let idx = (idx_f as usize).min(7);
+            Span::styled(ch.to_string(), Style::default().fg(CHROME[idx]))
+        })
+        .collect();
+
+    Line::from(spans)
+}
+
+/// Separator with version info
+fn render_separator(f: &mut Frame, area: Rect, info: &WelcomeInfo) {
+    let version = env!("CARGO_PKG_VERSION");
+    let sep_text = format!(
+        "─── ◆ tracey v{version} ─── {} · {} ───",
+        info.provider, info.model
+    );
+
+    // Pad to fill width
+    let remaining = (area.width as usize).saturating_sub(sep_text.len());
+    let full_sep = format!("{sep_text}{}", "─".repeat(remaining));
+
+    let line = Line::from(Span::styled(full_sep, Style::default().fg(CHROME[6])));
+    f.render_widget(Paragraph::new(vec![line]), area);
+}
+
+/// Two-column info panel
+fn render_info_panel(f: &mut Frame, area: Rect, info: &WelcomeInfo) {
+    let cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    render_left_info(f, cols[0], info);
+    render_right_info(f, cols[1], info);
+}
+
+fn render_left_info(f: &mut Frame, area: Rect, info: &WelcomeInfo) {
     let mut lines: Vec<Line> = Vec::new();
 
     lines.push(Line::from(""));
-
-    // Tools section
     lines.push(Line::from(Span::styled(
         "  Available Tools",
-        Style::default().fg(CHROME[2]).add_modifier(Modifier::BOLD),
+        Style::default().fg(CHROME[2]).add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
     )));
-
-    let tools_line = info.tools.iter()
-        .map(|t| Span::styled(format!(" {t} "), Style::default().fg(CHROME[4])))
-        .collect::<Vec<_>>();
-    lines.push(Line::from(vec![Span::raw("  ")]));
-    // Show tools in a wrapped line
-    let tools_str = info.tools.join("  ");
-    lines.push(Line::from(vec![
-        Span::styled("  ", Style::default()),
-        Span::styled(tools_str, Style::default().fg(DIM)),
-    ]));
     lines.push(Line::from(""));
 
-    // Graph section
+    // Tools in a nice layout
+    for tool in &info.tools {
+        lines.push(Line::from(vec![
+            Span::styled("    ● ", Style::default().fg(CHROME[4])),
+            Span::styled(tool.clone(), Style::default().fg(CHROME[2])),
+        ]));
+    }
+
+    lines.push(Line::from(""));
     lines.push(Line::from(Span::styled(
         "  Causal Graph",
-        Style::default().fg(CHROME[2]).add_modifier(Modifier::BOLD),
+        Style::default().fg(CHROME[2]).add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
     )));
+    lines.push(Line::from(""));
+
     if info.graph_nodes > 0 {
         lines.push(Line::from(vec![
-            Span::styled("  ◈ ", Style::default().fg(LAVENDER)),
+            Span::styled("    ◈ ", Style::default().fg(CHROME[2])),
             Span::styled(
-                format!("{} nodes, {} edges", info.graph_nodes, info.graph_edges),
+                format!("{} nodes", info.graph_nodes),
+                Style::default().fg(CHROME[3]),
+            ),
+            Span::styled(" · ", Style::default().fg(CHROME[7])),
+            Span::styled(
+                format!("{} edges", info.graph_edges),
                 Style::default().fg(CHROME[3]),
             ),
         ]));
         if !info.languages.is_empty() {
             lines.push(Line::from(vec![
-                Span::styled("  ◈ ", Style::default().fg(LAVENDER)),
+                Span::styled("    ◈ ", Style::default().fg(CHROME[4])),
                 Span::styled(
                     info.languages.join(", "),
                     Style::default().fg(DIM),
@@ -146,36 +161,75 @@ fn render_right_column(f: &mut Frame, area: Rect, info: &WelcomeInfo) {
         }
     } else {
         lines.push(Line::from(vec![
-            Span::styled("  ◈ ", Style::default().fg(DIM)),
-            Span::styled("empty (builds on first query)", Style::default().fg(DIM)),
+            Span::styled("    ◈ ", Style::default().fg(DIM)),
+            Span::styled("builds on first query", Style::default().fg(DIM)),
         ]));
     }
-    lines.push(Line::from(""));
 
-    // Quick commands
+    f.render_widget(Paragraph::new(lines), area);
+}
+
+fn render_right_info(f: &mut Frame, area: Rect, info: &WelcomeInfo) {
+    let mut lines: Vec<Line> = Vec::new();
+
+    lines.push(Line::from(""));
     lines.push(Line::from(Span::styled(
         "  Quick Start",
-        Style::default().fg(CHROME[2]).add_modifier(Modifier::BOLD),
+        Style::default().fg(CHROME[2]).add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
     )));
+    lines.push(Line::from(""));
+
+    let commands = [
+        ("/help", "all commands"),
+        ("/graph show", "view causal graph"),
+        ("/graph impact <file>", "impact analysis"),
+        ("/why <error>", "root cause trace"),
+        ("/whatif edit <file>", "predict changes"),
+        ("/cost", "token usage & cost"),
+        ("/model <name>", "switch model"),
+        ("/clear", "new conversation"),
+    ];
+
+    for (cmd, desc) in &commands {
+        lines.push(Line::from(vec![
+            Span::styled(format!("    {cmd:<22}"), Style::default().fg(CHROME[3])),
+            Span::styled(desc.to_string(), Style::default().fg(DIM)),
+        ]));
+    }
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "  Session Info",
+        Style::default().fg(CHROME[2]).add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
+    )));
+    lines.push(Line::from(""));
     lines.push(Line::from(vec![
-        Span::styled("  /help    ", Style::default().fg(CHROME[4])),
-        Span::styled("all commands", Style::default().fg(DIM)),
+        Span::styled("    Session  ", Style::default().fg(DIM)),
+        Span::styled(format!("#{}", info.session_number), Style::default().fg(CHROME[3])),
     ]));
     lines.push(Line::from(vec![
-        Span::styled("  /graph   ", Style::default().fg(CHROME[4])),
-        Span::styled("causal graph", Style::default().fg(DIM)),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("  /cost    ", Style::default().fg(CHROME[4])),
-        Span::styled("token usage", Style::default().fg(DIM)),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("  /why     ", Style::default().fg(CHROME[4])),
-        Span::styled("root cause", Style::default().fg(DIM)),
+        Span::styled("    CWD      ", Style::default().fg(DIM)),
+        Span::styled(
+            truncate_str(&info.cwd, area.width as usize - 16),
+            Style::default().fg(DIM),
+        ),
     ]));
 
-    let paragraph = Paragraph::new(lines);
-    f.render_widget(paragraph, area);
+    f.render_widget(Paragraph::new(lines), area);
+}
+
+fn render_welcome_message(f: &mut Frame, area: Rect) {
+    let lines = vec![
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  Welcome! ", Style::default().fg(CHROME[2]).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Type your message or /help for commands.",
+                Style::default().fg(DIM),
+            ),
+        ]),
+    ];
+    f.render_widget(Paragraph::new(lines), area);
 }
 
 fn truncate_str(s: &str, max: usize) -> String {
