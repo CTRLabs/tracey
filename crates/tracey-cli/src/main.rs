@@ -122,11 +122,15 @@ async fn main() -> anyhow::Result<()> {
     // Create SQ/EQ channels
     let (agent_handle, ui_handle) = EventChannel::new(256);
 
+    // Create hook runner (empty for now — populated from config in future)
+    let hook_runner = tracey_hooks::HookRunner::empty();
+
     // Spawn agent
     let mut agent = tracey_agent::Agent::new(
         router,
         tools,
         graph.clone(),
+        hook_runner,
         system_prompt,
         session_counter,
     );
