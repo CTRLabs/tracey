@@ -91,7 +91,7 @@ impl Message {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", content = "data")]
 pub enum ContentBlock {
     #[serde(rename = "text")]
     Text(String),
