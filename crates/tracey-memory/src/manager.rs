@@ -85,17 +85,48 @@ impl MemoryManager {
     /// Signals: semantic (vector), temporal (recency), causal (graph), entity (label match)
     pub fn recall(&self, query: &str, top_k: usize) -> Vec<(String, f64)> {
         let store = self.graph.read().unwrap();
+        let knowledge_nodes = store.nodes_by_layer(GraphLayer::Knowledge);
 
-        // Signal 1: Semantic (vector similarity)
-        let semantic_results = if !self.vector_index.is_empty() {
-            // For now, use empty query embedding (will be populated when LLM embed is called)
-            vec![]
+        // Signal 1: Semantic (TF-IDF word overlap scoring)
+        // No LLM embeddings needed — uses bag-of-words similarity
+        let query_words: Vec<String> = query
+            .to_lowercase()
+            .split_whitespace()
+            .filter(|w| w.len() > 2) // skip short words
+            .map(|w| w.to_string())
+            .collect();
+
+        let semantic_results: Vec<(String, f32)> = if !query_words.is_empty() {
+            knowledge_nodes
+                .iter()
+                .filter_map(|n| {
+                    let label_lower = n.label.to_lowercase();
+                    let label_words: Vec<&str> = label_lower.split_whitespace().collect();
+                    let total_words = label_words.len().max(1);
+
+                    // Count matching words (weighted by inverse frequency approximation)
+                    let matches: f32 = query_words
+                        .iter()
+                        .filter(|qw| label_lower.contains(qw.as_str()))
+                        .map(|qw| {
+                            // Longer matching words are more specific → higher weight
+                            (qw.len() as f32 / 4.0).min(2.0)
+                        })
+                        .sum();
+
+                    let score = matches / (query_words.len() as f32 + total_words as f32).sqrt();
+                    if score > 0.0 {
+                        Some((n.label.clone(), score * n.confidence as f32))
+                    } else {
+                        None
+                    }
+                })
+                .collect()
         } else {
             vec![]
         };
 
         // Signal 2: Temporal (recency-weighted)
-        let knowledge_nodes = store.nodes_by_layer(GraphLayer::Knowledge);
         let max_session = knowledge_nodes
             .iter()
             .map(|n| n.last_touched_session)

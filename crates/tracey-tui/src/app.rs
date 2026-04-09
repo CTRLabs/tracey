@@ -72,6 +72,41 @@ impl App {
         }
     }
 
+    /// Inject the welcome dashboard as the first message in the TUI
+    pub fn inject_welcome_dashboard(&mut self) {
+        let dashboard = format!(
+            "╭─◆ tracey ─────────────────────────────────╮\n\
+             │                                            │\n\
+             │  Model:     {}{}│\n\
+             │  Provider:  {}{}│\n\
+             │  Graph:     {} nodes, {} edges{}│\n\
+             │  Session:   #{}{}│\n\
+             │                                            │\n\
+             │  Tools:  Read  Write  Edit  Bash  Glob  Grep│\n\
+             │                                            │\n\
+             │  /help commands · /graph show · /cost       │\n\
+             │  Ctrl+C quit · ↑↓ scroll · Esc interrupt   │\n\
+             │                                            │\n\
+             ╰────────────────────────────────────────────╯",
+            self.model_name,
+            " ".repeat(30usize.saturating_sub(self.model_name.len())),
+            self.provider_name,
+            " ".repeat(30usize.saturating_sub(self.provider_name.len())),
+            self.graph_nodes,
+            self.graph_edges,
+            " ".repeat(22usize.saturating_sub(format!("{} nodes, {} edges", self.graph_nodes, self.graph_edges).len())),
+            self.session_number,
+            " ".repeat(30usize.saturating_sub(format!("#{}", self.session_number).len())),
+        );
+
+        self.messages.push(DisplayMessage {
+            role: MessageRole::System,
+            content: dashboard,
+            tool_name: None,
+            timestamp: now_time(),
+        });
+    }
+
     pub fn set_model_info(&mut self, model: &str, provider: &str) {
         self.model_name = model.to_string();
         self.provider_name = provider.to_string();
