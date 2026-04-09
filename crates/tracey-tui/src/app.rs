@@ -324,81 +324,101 @@ impl App {
     }
 
     fn render(&self, f: &mut Frame) {
+        // Check if we should show welcome panel (no user messages yet)
+        let has_user_messages = self.messages.iter().any(|m| m.role == MessageRole::User);
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(1), // header bar
-                Constraint::Min(5),    // messages
+                Constraint::Min(5),    // messages or welcome panel
                 Constraint::Length(3), // input
                 Constraint::Length(1), // status bar
             ])
             .split(f.area());
 
         self.render_header(f, chunks[0]);
-        self.render_messages(f, chunks[1]);
+
+        if !has_user_messages && !self.is_processing {
+            // Show welcome panel instead of empty chat
+            let welcome_info = crate::welcome::WelcomeInfo {
+                model: self.model_name.clone(),
+                provider: self.provider_name.clone(),
+                cwd: std::env::current_dir()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_default(),
+                graph_nodes: self.graph_nodes,
+                graph_edges: self.graph_edges,
+                languages: Vec::new(), // TODO: pass from main
+                tools: vec!["Read".into(), "Write".into(), "Edit".into(), "Bash".into(), "Glob".into(), "Grep".into()],
+                session_number: self.session_number,
+            };
+            crate::welcome::render_welcome(f, chunks[1], &welcome_info);
+        } else {
+            self.render_messages(f, chunks[1]);
+        }
+
         self.render_input(f, chunks[2]);
         self.render_status(f, chunks[3]);
     }
 
     fn render_header(&self, f: &mut Frame, area: Rect) {
         let mut spans = vec![
-            Span::styled(" ◆ tracey ", Style::default().fg(Color::Black).bg(theme::VIOLET).add_modifier(Modifier::BOLD)),
-            Span::styled(" ", Style::default()),
+            Span::styled(" ◆ ", Style::default().fg(theme::CHROME[0]).bg(theme::CHROME[8])),
+            Span::styled("tracey ", Style::default().fg(theme::CHROME[2]).bg(theme::CHROME[8]).add_modifier(Modifier::BOLD)),
         ];
 
-        // Model info
+        // Model (chrome bright)
         if !self.model_name.is_empty() {
+            let short_model = self.model_name
+                .replace("claude-", "")
+                .replace("-20250514", "")
+                .replace("-20250610", "")
+                .replace("-20251001", "");
             spans.push(Span::styled(
-                format!("{} ", self.model_name),
-                Style::default().fg(theme::DIM),
+                format!(" {short_model} "),
+                Style::default().fg(theme::CHROME[3]),
             ));
-            spans.push(Span::styled("│ ", Style::default().fg(theme::VIOLET_DIM)));
         }
 
-        // Graph stats
+        // Graph stats (lavender)
         spans.push(Span::styled(
-            format!("◈ {}n {}e ", self.graph_nodes, self.graph_edges),
-            Style::default().fg(theme::LAVENDER),
+            format!(" ◈ {}n {}e ", self.graph_nodes, self.graph_edges),
+            Style::default().fg(theme::CHROME[2]),
         ));
-        spans.push(Span::styled("│ ", Style::default().fg(theme::VIOLET_DIM)));
 
-        // Context capacity bar (Hermes-inspired)
+        // Context capacity bar
         let capacity_pct = if self.tokens_max > 0 {
             ((self.tokens_used as f64 / self.tokens_max as f64) * 100.0) as u8
         } else {
             0
         };
-        let bar_width = 10u16;
+        let bar_width = 8u16;
         let filled = ((capacity_pct as u16) * bar_width / 100).min(bar_width);
         let bar_color = match capacity_pct {
             0..=50 => theme::SUCCESS,
             51..=80 => theme::WARNING,
-            81..=95 => Color::Rgb(249, 115, 22), // orange
+            81..=95 => Color::Rgb(249, 115, 22),
             _ => theme::ERROR,
         };
 
-        spans.push(Span::styled("ctx ", Style::default().fg(theme::DIM)));
         spans.push(Span::styled(
             "█".repeat(filled as usize),
             Style::default().fg(bar_color),
         ));
         spans.push(Span::styled(
             "░".repeat((bar_width - filled) as usize),
-            Style::default().fg(theme::VIOLET_MUTED),
-        ));
-        spans.push(Span::styled(
-            format!(" {capacity_pct}%"),
-            Style::default().fg(bar_color),
+            Style::default().fg(theme::CHROME[9]),
         ));
 
-        // Session info on the right
-        let session_info = format!(" session {} · turn {} ", self.session_number, self.turn_count);
+        // Right-aligned: session + turn
+        let right = format!(" session {} · turn {} ", self.session_number, self.turn_count);
         let used: u16 = spans.iter().map(|s| s.width() as u16).sum();
-        let remaining = area.width.saturating_sub(used + session_info.len() as u16);
+        let remaining = area.width.saturating_sub(used + right.len() as u16);
         if remaining > 0 {
             spans.push(Span::raw(" ".repeat(remaining as usize)));
         }
-        spans.push(Span::styled(session_info, Style::default().fg(theme::DIM)));
+        spans.push(Span::styled(right, Style::default().fg(theme::DIM)));
 
         f.render_widget(Paragraph::new(Line::from(spans)), area);
     }
