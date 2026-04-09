@@ -1,1 +1,3 @@
-// Telegram bot — Phase 3
+pub mod bot;
+
+pub use bot::TelegramConfig;

@@ -10,3 +10,5 @@ tracey-agent = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
