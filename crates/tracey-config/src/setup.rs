@@ -91,12 +91,22 @@ impl SetupWizard {
             println!();
         }
 
-        // Auto-detect environment variables
+        // Auto-detect environment variables (expanded — from Hermes Agent patterns)
         let detected: Vec<(&str, &str)> = vec![
             ("ANTHROPIC_API_KEY", "Anthropic"),
             ("OPENAI_API_KEY", "OpenAI"),
             ("GEMINI_API_KEY", "Google Gemini"),
+            ("GOOGLE_API_KEY", "Google Gemini"),
             ("OPENROUTER_API_KEY", "OpenRouter"),
+            ("DEEPSEEK_API_KEY", "DeepSeek"),
+            ("TOGETHER_API_KEY", "Together AI"),
+            ("GROQ_API_KEY", "Groq"),
+            ("XAI_API_KEY", "xAI / Grok"),
+            ("FIREWORKS_API_KEY", "Fireworks AI"),
+            ("NOUS_API_KEY", "Nous Research"),
+            ("COPILOT_GITHUB_TOKEN", "GitHub Copilot"),
+            ("MOONSHOT_API_KEY", "Kimi / Moonshot"),
+            ("DASHSCOPE_API_KEY", "Alibaba DashScope"),
         ];
 
         let mut found_any = false;
@@ -111,6 +121,30 @@ impl SetupWizard {
                     found_any = true;
                 }
             }
+        }
+
+        // Check for Claude Code credentials
+        let claude_creds = dirs::home_dir()
+            .map(|h| h.join(".claude").join(".credentials.json"))
+            .filter(|p| p.exists());
+        if claude_creds.is_some() {
+            if !found_any {
+                println!("  {VB}Detected credentials:{RST}");
+            }
+            println!("  {G}✓{RST} Claude Code: {D}credentials found (~/.claude/){RST}");
+            found_any = true;
+        }
+
+        // Check for Codex credentials
+        let codex_creds = dirs::home_dir()
+            .map(|h| h.join(".codex").join("auth.json"))
+            .filter(|p| p.exists());
+        if codex_creds.is_some() {
+            if !found_any {
+                println!("  {VB}Detected credentials:{RST}");
+            }
+            println!("  {G}✓{RST} Codex CLI: {D}credentials found (~/.codex/){RST}");
+            found_any = true;
         }
 
         // Check if Ollama is running
@@ -148,7 +182,13 @@ impl SetupWizard {
         println!("    {V}5{RST}) OpenRouter (200+ models)");
         println!("    {V}6{RST}) DeepSeek");
         println!("    {V}7{RST}) Together AI");
-        println!("    {V}8{RST}) Custom (OpenAI-compatible)");
+        println!("    {V}8{RST}) Groq (fast inference)");
+        println!("    {V}9{RST}) xAI / Grok");
+        println!("    {V}10{RST}) Fireworks AI");
+        println!("    {V}11{RST}) Kimi / Moonshot");
+        println!("    {V}12{RST}) Alibaba DashScope");
+        println!("    {V}13{RST}) GitHub Copilot             {}", if std::env::var("COPILOT_GITHUB_TOKEN").is_ok() { format!("{G}● token found{RST}") } else { String::new() });
+        println!("    {V}14{RST}) Custom (OpenAI-compatible)");
         println!();
 
         let choice = Self::prompt(&format!("  {V}▸{RST} Choice [1]: "))?;
@@ -197,7 +237,43 @@ impl SetupWizard {
                 api_key_env: "TOGETHER_API_KEY".into(),
                 transport: Transport::OpenAiChat,
             }),
-            "8" => {
+            "8" => Ok(ProviderEntry {
+                name: "groq".into(),
+                base_url: "https://api.groq.com/openai/v1".into(),
+                api_key_env: "GROQ_API_KEY".into(),
+                transport: Transport::OpenAiChat,
+            }),
+            "9" => Ok(ProviderEntry {
+                name: "xai".into(),
+                base_url: "https://api.x.ai/v1".into(),
+                api_key_env: "XAI_API_KEY".into(),
+                transport: Transport::OpenAiChat,
+            }),
+            "10" => Ok(ProviderEntry {
+                name: "fireworks".into(),
+                base_url: "https://api.fireworks.ai/inference/v1".into(),
+                api_key_env: "FIREWORKS_API_KEY".into(),
+                transport: Transport::OpenAiChat,
+            }),
+            "11" => Ok(ProviderEntry {
+                name: "moonshot".into(),
+                base_url: "https://api.moonshot.ai/v1".into(),
+                api_key_env: "MOONSHOT_API_KEY".into(),
+                transport: Transport::OpenAiChat,
+            }),
+            "12" => Ok(ProviderEntry {
+                name: "dashscope".into(),
+                base_url: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1".into(),
+                api_key_env: "DASHSCOPE_API_KEY".into(),
+                transport: Transport::OpenAiChat,
+            }),
+            "13" => Ok(ProviderEntry {
+                name: "copilot".into(),
+                base_url: "https://api.githubcopilot.com".into(),
+                api_key_env: "COPILOT_GITHUB_TOKEN".into(),
+                transport: Transport::OpenAiChat,
+            }),
+            "14" => {
                 println!();
                 let url = Self::prompt(&format!("  {V}▸{RST} Base URL: "))?;
                 let env = Self::prompt(&format!("  {V}▸{RST} API key env var (or leave empty): "))?;
@@ -279,32 +355,53 @@ impl SetupWizard {
         let defaults = match provider.name.as_str() {
             "anthropic" => vec![
                 ("1", "claude-sonnet-4-20250514", "Claude Sonnet 4", "recommended — best balance"),
-                ("2", "claude-opus-4-6-20250610", "Claude Opus 4.6", "most capable"),
+                ("2", "claude-opus-4-6-20250610", "Claude Opus 4.6", "most capable (1M context)"),
                 ("3", "claude-haiku-4-5-20251001", "Claude Haiku 4.5", "fastest, cheapest"),
             ],
             "openai" => vec![
                 ("1", "gpt-4o", "GPT-4o", "recommended"),
                 ("2", "gpt-4o-mini", "GPT-4o Mini", "fast, cheap"),
                 ("3", "o3-mini", "o3 Mini", "reasoning"),
+                ("4", "gpt-5.4-mini", "GPT-5.4 Mini", "latest, if available"),
             ],
             "ollama" => vec![
-                ("1", "qwen2.5-coder:32b", "Qwen 2.5 Coder 32B", "best local"),
+                ("1", "qwen2.5-coder:32b", "Qwen 2.5 Coder 32B", "best local code"),
                 ("2", "deepseek-coder-v2:16b", "DeepSeek Coder V2", "good balance"),
-                ("3", "codellama:34b", "Code Llama 34B", "Meta's model"),
+                ("3", "llama3.3:70b", "Llama 3.3 70B", "strong general"),
+                ("4", "codellama:34b", "Code Llama 34B", "Meta's code model"),
             ],
             "openrouter" => vec![
                 ("1", "anthropic/claude-sonnet-4-20250514", "Claude Sonnet 4", "via OpenRouter"),
                 ("2", "openai/gpt-4o", "GPT-4o", "via OpenRouter"),
                 ("3", "google/gemini-2.5-pro", "Gemini 2.5 Pro", "via OpenRouter"),
+                ("4", "deepseek/deepseek-coder", "DeepSeek Coder", "via OpenRouter"),
             ],
             "deepseek" => vec![
-                ("1", "deepseek-coder", "DeepSeek Coder", "optimized for code"),
-                ("2", "deepseek-chat", "DeepSeek Chat", "general purpose"),
+                ("1", "deepseek-coder", "DeepSeek Coder V3", "optimized for code"),
+                ("2", "deepseek-chat", "DeepSeek Chat V3", "general purpose"),
             ],
             "together" => vec![
-                ("1", "Qwen/Qwen2.5-Coder-32B-Instruct", "Qwen 2.5 Coder 32B", "best open-source"),
+                ("1", "Qwen/Qwen2.5-Coder-32B-Instruct", "Qwen 2.5 Coder 32B", "best open-source code"),
                 ("2", "meta-llama/Llama-3.3-70B-Instruct-Turbo", "Llama 3.3 70B", "fast, general"),
                 ("3", "deepseek-ai/DeepSeek-V3", "DeepSeek V3", "very capable"),
+            ],
+            "groq" => vec![
+                ("1", "llama-3.3-70b-versatile", "Llama 3.3 70B", "fast inference"),
+                ("2", "mixtral-8x7b-32768", "Mixtral 8x7B", "32K context"),
+                ("3", "gemma2-9b-it", "Gemma 2 9B", "compact, fast"),
+            ],
+            "xai" => vec![
+                ("1", "grok-2", "Grok 2", "latest"),
+                ("2", "grok-2-mini", "Grok 2 Mini", "fast"),
+            ],
+            "fireworks" => vec![
+                ("1", "accounts/fireworks/models/qwen2p5-coder-32b-instruct", "Qwen 2.5 Coder 32B", "code-optimized"),
+                ("2", "accounts/fireworks/models/llama-v3p3-70b-instruct", "Llama 3.3 70B", "general"),
+            ],
+            "gemini" => vec![
+                ("1", "gemini-2.5-pro", "Gemini 2.5 Pro", "recommended"),
+                ("2", "gemini-2.5-flash", "Gemini 2.5 Flash", "fast, cheap"),
+                ("3", "gemini-3.1-pro", "Gemini 3.1 Pro", "latest, if available"),
             ],
             _ => vec![
                 ("1", "auto", "Auto-detect", "let the provider decide"),
