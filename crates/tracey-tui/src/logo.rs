@@ -1,111 +1,89 @@
-use crate::theme::*;
+use crate::theme::{chrome_gradient_ansi, ANSI_CHROME, ANSI_DIM, ANSI_RESET};
 use std::time::Duration;
 
-/// Gradient logo — violet to lavender, inspired by Hermes's hex gradient approach
-/// Each line gets a slightly different shade for a gradient effect
-pub fn print_startup_banner() {
-    let gradient = [
-        "\x1b[38;2;109;40;217m",  // deep violet
-        "\x1b[38;2;119;56;226m",
-        "\x1b[38;2;129;72;236m",
-        "\x1b[38;2;139;92;246m",  // primary violet
-        "\x1b[38;2;149;108;248m",
-        "\x1b[38;2;159;124;250m",
-        "\x1b[38;2;167;139;250m", // bright violet
-    ];
+const LOGO_LINES: [&str; 6] = [
+    "  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗",
+    "  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝",
+    "     ██║   ██████╔╝███████║██║     █████╗   ╚████╔╝ ",
+    "     ██║   ██╔══██╗██╔══██║██║     ██╔══╝    ╚██╔╝  ",
+    "     ██║   ██║  ██║██║  ██║╚██████╗███████╗   ██║   ",
+    "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
+];
 
-    let logo_lines = [
-        "  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗",
-        "  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝",
-        "     ██║   ██████╔╝███████║██║     █████╗   ╚████╔╝ ",
-        "     ██║   ██╔══██╗██╔══██║██║     ██╔══╝    ╚██╔╝  ",
-        "     ██║   ██║  ██║██║  ██║╚██████╗███████╗   ██║   ",
-        "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
-    ];
-
+/// Print the logo with per-character liquid chrome gradient
+pub fn print_chrome_logo() {
     println!();
-
-    // Gradient logo
-    for (i, line) in logo_lines.iter().enumerate() {
-        let color = gradient[i.min(gradient.len() - 1)];
-        println!("{color}{line}{ANSI_RESET}");
+    for line in &LOGO_LINES {
+        println!("{}", chrome_gradient_ansi(line));
     }
-
-    // Causal graph beneath logo
     println!();
-    println!("  {ANSI_LAVENDER}    ◉{ANSI_DIM}──╌╌──▸{ANSI_LAVENDER} ◉{ANSI_DIM}──╌╌──▸{ANSI_LAVENDER} ◉{ANSI_RESET}");
-    println!("  {ANSI_DIM}              └──╌╌──▸{ANSI_LAVENDER} ◉{ANSI_RESET}");
+    // Causal graph trace art
+    let c2 = ANSI_CHROME[2]; // chrome light
+    let c5 = ANSI_CHROME[5]; // core violet
+    let c7 = ANSI_CHROME[7]; // deep
+    println!("  {c2}    ◉{c7}──╌╌──▸{c2} ◉{c7}──╌╌──▸{c2} ◉{ANSI_RESET}");
+    println!("  {c7}              └──╌╌──▸{c2} ◉{ANSI_RESET}");
     println!();
+}
 
-    // Tagline
-    println!("  {ANSI_VIOLET_BRIGHT}tracing causal connections{ANSI_RESET}");
+/// Print startup banner (no animation)
+pub fn print_startup_banner() {
+    print_chrome_logo();
+    println!("  {}", chrome_gradient_ansi("tracing causal connections"));
     println!("  {ANSI_DIM}v{}{ANSI_RESET}", env!("CARGO_PKG_VERSION"));
     println!();
 }
 
-/// Animated startup — <700ms total
+/// Animated startup — liquid chrome logo traces in
 pub async fn animate_startup() {
     print!("\x1b[?25l"); // hide cursor
+    print!("\x1b[2J\x1b[H"); // clear
 
-    let gradient = [
-        "\x1b[38;2;109;40;217m",
-        "\x1b[38;2;119;56;226m",
-        "\x1b[38;2;129;72;236m",
-        "\x1b[38;2;139;92;246m",
-        "\x1b[38;2;149;108;248m",
-        "\x1b[38;2;159;124;250m",
-        "\x1b[38;2;167;139;250m",
-    ];
+    let c2 = ANSI_CHROME[2];
+    let c7 = ANSI_CHROME[7];
 
-    let logo_lines = [
-        "  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗",
-        "  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝",
-        "     ██║   ██████╔╝███████║██║     █████╗   ╚████╔╝ ",
-        "     ██║   ██╔══██╗██╔══██║██║     ██╔══╝    ╚██╔╝  ",
-        "     ██║   ██║  ██║██║  ██║╚██████╗███████╗   ██║   ",
-        "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
-    ];
-
-    print!("\x1b[2J\x1b[H");
+    // Phase 1: Graph nodes trace in (300ms)
     println!();
-
-    // Phase 1: Graph traces (250ms)
-    print!("  {ANSI_LAVENDER}    ◉{ANSI_RESET}");
-    std::io::Write::flush(&mut std::io::stdout()).ok();
+    print!("  {c2}    ◉{ANSI_RESET}");
+    flush();
     tokio::time::sleep(Duration::from_millis(60)).await;
 
-    print!("{ANSI_DIM}──╌╌──▸{ANSI_RESET}");
-    std::io::Write::flush(&mut std::io::stdout()).ok();
+    print!("{c7}──╌╌──▸{ANSI_RESET}");
+    flush();
     tokio::time::sleep(Duration::from_millis(60)).await;
 
-    print!(" {ANSI_LAVENDER}◉{ANSI_RESET}");
-    std::io::Write::flush(&mut std::io::stdout()).ok();
+    print!(" {c2}◉{ANSI_RESET}");
+    flush();
     tokio::time::sleep(Duration::from_millis(60)).await;
 
-    print!("{ANSI_DIM}──╌╌──▸{ANSI_RESET}");
-    std::io::Write::flush(&mut std::io::stdout()).ok();
+    print!("{c7}──╌╌──▸{ANSI_RESET}");
+    flush();
     tokio::time::sleep(Duration::from_millis(60)).await;
 
-    println!(" {ANSI_LAVENDER}◉{ANSI_RESET}");
-    println!("  {ANSI_DIM}              └──╌╌──▸{ANSI_LAVENDER} ◉{ANSI_RESET}");
-    tokio::time::sleep(Duration::from_millis(60)).await;
+    println!(" {c2}◉{ANSI_RESET}");
+    println!("  {c7}              └──╌╌──▸{c2} ◉{ANSI_RESET}");
+    tokio::time::sleep(Duration::from_millis(80)).await;
 
-    // Phase 2: Logo lines appear (240ms)
+    // Phase 2: Chrome logo appears (240ms)
     println!();
-    for (i, line) in logo_lines.iter().enumerate() {
-        let color = gradient[i.min(gradient.len() - 1)];
-        println!("{color}{line}{ANSI_RESET}");
+    for line in &LOGO_LINES {
+        println!("{}", chrome_gradient_ansi(line));
         tokio::time::sleep(Duration::from_millis(40)).await;
     }
 
     // Phase 3: Tagline (50ms)
     println!();
-    println!("  {ANSI_VIOLET_BRIGHT}tracing causal connections{ANSI_RESET}");
+    println!("  {}", chrome_gradient_ansi("tracing causal connections"));
     println!("  {ANSI_DIM}v{}{ANSI_RESET}", env!("CARGO_PKG_VERSION"));
     println!();
 
     print!("\x1b[?25h"); // show cursor
     tokio::time::sleep(Duration::from_millis(100)).await;
+}
+
+fn flush() {
+    use std::io::Write;
+    std::io::stdout().flush().ok();
 }
 
 pub struct Spinner {

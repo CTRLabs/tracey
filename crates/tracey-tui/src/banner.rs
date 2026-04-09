@@ -1,124 +1,94 @@
-use crate::theme::*;
+use crate::theme::{self, *};
 
-/// Build the welcome banner — Hermes-inspired 2-column layout.
-/// Left: logo + model + cwd. Right: tools + graph stats + commands.
+/// Build the welcome banner — liquid chrome aesthetic.
 pub fn print_welcome_banner(info: &BannerInfo) {
     let term_width = terminal_width();
     let wide = term_width >= 90;
 
     println!();
 
-    // === LOGO (only on wide terminals) ===
+    // Logo (liquid chrome per-character gradient)
     if wide {
-        let gradient = [
-            "\x1b[38;2;109;40;217m",
-            "\x1b[38;2;119;56;226m",
-            "\x1b[38;2;129;72;236m",
-            "\x1b[38;2;139;92;246m",
-            "\x1b[38;2;149;108;248m",
-            "\x1b[38;2;159;124;250m",
-            "\x1b[38;2;167;139;250m",
-        ];
-
-        let logo_lines = [
-            "  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗",
-            "  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝",
-            "     ██║   ██████╔╝███████║██║     █████╗   ╚████╔╝ ",
-            "     ██║   ██╔══██╗██╔══██║██║     ██╔══╝    ╚██╔╝  ",
-            "     ██║   ██║  ██║██║  ██║╚██████╗███████╗   ██║   ",
-            "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
-        ];
-
-        for (i, line) in logo_lines.iter().enumerate() {
-            let color = gradient[i.min(gradient.len() - 1)];
-            println!("{color}{line}{ANSI_RESET}");
-        }
-        println!();
-        println!("  {ANSI_LAVENDER}    ◉{ANSI_DIM}──╌╌──▸{ANSI_LAVENDER} ◉{ANSI_DIM}──╌╌──▸{ANSI_LAVENDER} ◉{ANSI_RESET}");
-        println!("  {ANSI_DIM}              └──╌╌──▸{ANSI_LAVENDER} ◉{ANSI_RESET}");
-        println!();
+        crate::logo::print_chrome_logo();
     }
 
-    // === BANNER BOX ===
+    // Banner box with chrome borders
     let box_width = term_width.min(80);
     let border = "─".repeat(box_width - 2);
+    let c = ANSI_CHROME;
 
-    // Top border
-    println!("  {ANSI_VIOLET_DIM}╭{border}╮{ANSI_RESET}");
+    // Top border in chrome gradient
+    println!("  {}", chrome_gradient_ansi(&format!("╭{border}╮")));
 
-    // Title line
+    // Title
     let version = env!("CARGO_PKG_VERSION");
     let title = format!("◆ tracey v{version}");
-    let padding = box_width.saturating_sub(title.len() + 4);
-    println!("  {ANSI_VIOLET_DIM}│{ANSI_RESET} {ANSI_VIOLET}{ANSI_BOLD}{title}{ANSI_RESET}{}{ANSI_VIOLET_DIM}│{ANSI_RESET}",
-        " ".repeat(padding));
+    let pad = box_width.saturating_sub(title.len() + 4);
+    println!("  {}│{} {} {}{} {}│{}",
+        c[7], ANSI_RESET, chrome_gradient_ansi(&title), ANSI_RESET,
+        " ".repeat(pad), c[7], ANSI_RESET);
 
     // Separator
-    let sep = "─".repeat(box_width - 2);
-    println!("  {ANSI_VIOLET_DIM}├{sep}┤{ANSI_RESET}");
+    println!("  {}├{}┤{}", c[8], "─".repeat(box_width - 2), ANSI_RESET);
 
-    // Model info
-    print_row(box_width, &format!("  Model     {ANSI_WHITE}{}{ANSI_RESET}", info.model));
-    print_row(box_width, &format!("  Provider  {ANSI_WHITE}{}{ANSI_RESET}", info.provider));
-    print_row(box_width, &format!("  CWD       {ANSI_DIM}{}{ANSI_RESET}", truncate_path(&info.cwd, box_width - 20)));
+    // Model + provider
+    print_row(box_width, &format!("  Model     {}{}{}", ANSI_CHROME[1], info.model, ANSI_RESET));
+    print_row(box_width, &format!("  Provider  {}{}{}", ANSI_CHROME[3], info.provider, ANSI_RESET));
+    print_row(box_width, &format!("  CWD       {}{}{}", ANSI_DIM, truncate_path(&info.cwd, box_width - 20), ANSI_RESET));
 
     // Separator
-    println!("  {ANSI_VIOLET_DIM}├{sep}┤{ANSI_RESET}");
+    println!("  {}├{}┤{}", c[8], "─".repeat(box_width - 2), ANSI_RESET);
 
     // Graph stats
     if info.graph_nodes > 0 {
         print_row(box_width, &format!(
-            "  {ANSI_LAVENDER}◈{ANSI_RESET} Graph     {ANSI_WHITE}{} nodes, {} edges{ANSI_RESET}",
-            info.graph_nodes, info.graph_edges
+            "  {}◈{} Graph     {}{} nodes, {} edges{}",
+            c[2], ANSI_RESET, ANSI_CHROME[1], info.graph_nodes, info.graph_edges, ANSI_RESET
         ));
         if !info.languages.is_empty() {
             print_row(box_width, &format!(
-                "  {ANSI_LAVENDER}◈{ANSI_RESET} Languages {ANSI_DIM}{}{ANSI_RESET}",
-                info.languages
+                "  {}◈{} Languages {}{}{}",
+                c[2], ANSI_RESET, ANSI_DIM, info.languages, ANSI_RESET
             ));
         }
     } else {
-        print_row(box_width, &format!("  {ANSI_DIM}◈ Graph     empty (will build on first query){ANSI_RESET}"));
+        print_row(box_width, &format!("  {}◈ Graph     empty (builds on first query){}", ANSI_DIM, ANSI_RESET));
     }
 
     // Separator
-    println!("  {ANSI_VIOLET_DIM}├{sep}┤{ANSI_RESET}");
+    println!("  {}├{}┤{}", c[8], "─".repeat(box_width - 2), ANSI_RESET);
 
     // Tools
     print_row(box_width, &format!(
-        "  Tools     {ANSI_WHITE}{}{ANSI_RESET}",
-        info.tools.join(", ")
+        "  Tools     {}{}{}",
+        ANSI_CHROME[3], info.tools.join("  "), ANSI_RESET
     ));
 
-    // Skills
     if info.skill_count > 0 {
         print_row(box_width, &format!(
-            "  Skills    {ANSI_WHITE}{} loaded{ANSI_RESET}",
-            info.skill_count
+            "  Skills    {}{} loaded{}", ANSI_CHROME[3], info.skill_count, ANSI_RESET
         ));
     }
 
     // Separator
-    println!("  {ANSI_VIOLET_DIM}├{sep}┤{ANSI_RESET}");
+    println!("  {}├{}┤{}", c[8], "─".repeat(box_width - 2), ANSI_RESET);
 
-    // Quick reference
-    print_row(box_width, &format!("  {ANSI_DIM}/help commands · /graph show · /cost · /why <error>{ANSI_RESET}"));
-    print_row(box_width, &format!("  {ANSI_DIM}Ctrl+C quit · ↑↓ scroll · Esc interrupt{ANSI_RESET}"));
+    // Commands
+    print_row(box_width, &format!("  {}/help commands  /graph show  /cost  /why <error>{}", ANSI_DIM, ANSI_RESET));
+    print_row(box_width, &format!("  {}Ctrl+C quit  ↑↓ scroll  Esc interrupt{}", ANSI_DIM, ANSI_RESET));
 
-    // Bottom border
-    println!("  {ANSI_VIOLET_DIM}╰{border}╯{ANSI_RESET}");
+    // Bottom border in chrome gradient
+    println!("  {}", chrome_gradient_ansi(&format!("╰{border}╯")));
     println!();
 }
 
 fn print_row(box_width: usize, content: &str) {
-    // Strip ANSI for width calculation
     let visible_len = strip_ansi_len(content);
-    let padding = box_width.saturating_sub(visible_len + 4);
-    println!("  {ANSI_VIOLET_DIM}│{ANSI_RESET}{content}{}{ANSI_VIOLET_DIM}│{ANSI_RESET}",
-        " ".repeat(padding));
+    let pad = box_width.saturating_sub(visible_len + 4);
+    let c8 = ANSI_CHROME[8];
+    println!("  {c8}│{ANSI_RESET}{content}{}{c8}│{ANSI_RESET}", " ".repeat(pad));
 }
 
-/// Count visible characters (ignoring ANSI escape sequences)
 fn strip_ansi_len(s: &str) -> usize {
     let mut len = 0;
     let mut in_escape = false;
@@ -126,9 +96,7 @@ fn strip_ansi_len(s: &str) -> usize {
         if c == '\x1b' {
             in_escape = true;
         } else if in_escape {
-            if c == 'm' {
-                in_escape = false;
-            }
+            if c == 'm' { in_escape = false; }
         } else {
             len += 1;
         }
@@ -137,18 +105,14 @@ fn strip_ansi_len(s: &str) -> usize {
 }
 
 fn truncate_path(path: &str, max: usize) -> String {
-    if path.len() <= max {
-        path.to_string()
-    } else {
-        format!("...{}", &path[path.len() - max + 3..])
-    }
+    if path.len() <= max { path.to_string() }
+    else { format!("...{}", &path[path.len() - max + 3..]) }
 }
 
 fn terminal_width() -> usize {
     crossterm::terminal::size().map(|(w, _)| w as usize).unwrap_or(80)
 }
 
-/// Information needed to render the welcome banner
 pub struct BannerInfo {
     pub model: String,
     pub provider: String,
