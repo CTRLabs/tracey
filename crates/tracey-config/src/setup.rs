@@ -51,14 +51,6 @@ impl SetupWizard {
     }
 
     fn print_header() {
-        let gradient = [
-            "\x1b[38;2;109;40;217m",
-            "\x1b[38;2;119;56;226m",
-            "\x1b[38;2;129;72;236m",
-            "\x1b[38;2;139;92;246m",
-            "\x1b[38;2;149;108;248m",
-            "\x1b[38;2;159;124;250m",
-        ];
         let logo_lines = [
             "  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗",
             "  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝",
@@ -68,16 +60,23 @@ impl SetupWizard {
             "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
         ];
 
+        // Liquid chrome per-character gradient
         println!();
-        for (i, line) in logo_lines.iter().enumerate() {
-            let color = gradient[i.min(gradient.len() - 1)];
-            println!("{color}{line}{RST}");
+        for line in &logo_lines {
+            println!("{}", chrome_gradient(line));
         }
         println!();
-        println!("  {LAV}    ◉{D}──╌╌──▸{LAV} ◉{D}──╌╌──▸{LAV} ◉{RST}");
-        println!("  {D}              └──╌╌──▸{LAV} ◉{RST}");
+
+        // Chrome causal graph trace
+        let c = [
+            "\x1b[38;2;210;190;255m", // chrome light
+            "\x1b[38;2;85;50;190m",   // deep violet
+        ];
+        println!("  {0}    ◉{1}──╌╌──▸{0} ◉{1}──╌╌──▸{0} ◉{RST}", c[0], c[1]);
+        println!("  {1}              └──╌╌──▸{0} ◉{RST}", c[0], c[1]);
         println!();
-        println!("  {V}◆{RST} {W}Setup Wizard{RST}");
+
+        println!("  {}", chrome_gradient("◆ Setup Wizard"));
         println!("  {D}  tracing causal connections{RST}");
         println!("  {D}  v{}{RST}", env!("CARGO_PKG_VERSION"));
         println!();
@@ -395,6 +394,32 @@ fn is_ollama_running() -> bool {
         &"127.0.0.1:11434".parse().unwrap(),
         std::time::Duration::from_millis(500),
     ).is_ok()
+}
+
+/// Render text as liquid chrome per-character gradient (violet metallic)
+fn chrome_gradient(text: &str) -> String {
+    let stops: [(u8, u8, u8); 12] = [
+        (245, 242, 255), (230, 220, 255), (210, 190, 255), (180, 160, 245),
+        (155, 130, 240), (139, 92, 246),  (110, 70, 220),  (85, 50, 190),
+        (65, 35, 150),   (45, 25, 100),   (30, 15, 60),    (15, 8, 35),
+    ];
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len().max(1);
+    let mut result = String::new();
+    for (i, ch) in chars.iter().enumerate() {
+        let t = (i as f64 / len as f64).clamp(0.0, 1.0);
+        let t_curved = t * t * 0.7 + t * 0.3;
+        let idx_f = t_curved * 11.0;
+        let lo = (idx_f as usize).min(10);
+        let hi = (lo + 1).min(11);
+        let frac = idx_f - lo as f64;
+        let r = (stops[lo].0 as f64 * (1.0 - frac) + stops[hi].0 as f64 * frac) as u8;
+        let g = (stops[lo].1 as f64 * (1.0 - frac) + stops[hi].1 as f64 * frac) as u8;
+        let b = (stops[lo].2 as f64 * (1.0 - frac) + stops[hi].2 as f64 * frac) as u8;
+        result.push_str(&format!("\x1b[38;2;{r};{g};{b}m{ch}"));
+    }
+    result.push_str("\x1b[0m");
+    result
 }
 
 fn truncate(s: &str, max: usize) -> String {
