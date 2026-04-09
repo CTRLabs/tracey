@@ -16,6 +16,7 @@ tracey-tools = { workspace = true }
 tracey-agent = { workspace = true }
 tracey-graph = { workspace = true }
 tracey-ast = { workspace = true }
+tracey-hooks = { workspace = true }
 tracey-tui = { workspace = true }
 tracey-telegram = { workspace = true }
 tracey-session = { workspace = true }
