@@ -3,16 +3,16 @@ use crate::credentials::CredentialPool;
 use std::io::{self, Write};
 use tracey_core::TraceyResult;
 
-// Violet color palette
-const V: &str = "\x1b[38;2;139;92;246m";   // violet
-const VB: &str = "\x1b[38;2;167;139;250m";  // violet bright
-const VD: &str = "\x1b[38;2;109;40;217m";   // violet dim
-const LAV: &str = "\x1b[38;2;196;181;253m"; // lavender
-const W: &str = "\x1b[1;37m";               // white bold
-const D: &str = "\x1b[90m";                 // dim
-const G: &str = "\x1b[38;2;34;197;94m";     // green
-const R: &str = "\x1b[38;2;239;68;68m";     // red
-const Y: &str = "\x1b[38;2;234;179;8m";     // yellow
+// Color palette using ANSI 256-color (works everywhere including tmux)
+const V: &str = "\x1b[38;5;135m";    // violet
+const VB: &str = "\x1b[38;5;141m";   // violet bright
+const VD: &str = "\x1b[38;5;97m";    // violet dim
+const LAV: &str = "\x1b[38;5;183m";  // lavender
+const W: &str = "\x1b[1;37m";        // white bold
+const D: &str = "\x1b[90m";          // dim
+const G: &str = "\x1b[38;5;35m";     // green
+const R: &str = "\x1b[38;5;196m";    // red
+const Y: &str = "\x1b[38;5;220m";    // yellow
 const RST: &str = "\x1b[0m";
 
 pub struct SetupWizard;
@@ -51,15 +51,15 @@ impl SetupWizard {
     }
 
     fn print_header() {
-        // Per-LINE gradient (not per-character — block chars break with per-char ANSI)
-        // Liquid chrome: bright highlight at top, fading to deep violet at bottom
+        // Per-LINE gradient using ANSI 256-color (works in tmux and all terminals)
+        // Falls back gracefully — these are the closest violet/purple stops in 256-color
         let colors = [
-            "\x1b[38;2;230;220;255m",  // bright lavender
-            "\x1b[38;2;200;180;255m",  // light violet
-            "\x1b[38;2;170;140;250m",  // mid violet
-            "\x1b[38;2;139;92;246m",   // core violet
-            "\x1b[38;2;110;70;220m",   // deep violet
-            "\x1b[38;2;85;50;190m",    // darker violet
+            "\x1b[38;5;183m",  // light lavender (183)
+            "\x1b[38;5;141m",  // light violet (141)
+            "\x1b[38;5;135m",  // violet (135) — our primary
+            "\x1b[38;5;98m",   // medium purple (98)
+            "\x1b[38;5;97m",   // dark violet (97)
+            "\x1b[38;5;55m",   // deep purple (55)
         ];
 
         let logo_lines = [
@@ -77,13 +77,13 @@ impl SetupWizard {
         }
         println!();
 
-        // Causal graph trace art (chrome light nodes, deep violet edges)
-        println!("  \x1b[38;2;210;190;255m    ◉\x1b[38;2;110;70;220m──╌╌──▸\x1b[38;2;210;190;255m ◉\x1b[38;2;110;70;220m──╌╌──▸\x1b[38;2;210;190;255m ◉{RST}");
-        println!("  \x1b[38;2;110;70;220m              └──╌╌──▸\x1b[38;2;210;190;255m ◉{RST}");
+        // Causal graph trace art
+        println!("  {LAV}    ◉{VD}──╌╌──▸{LAV} ◉{VD}──╌╌──▸{LAV} ◉{RST}");
+        println!("  {VD}              └──╌╌──▸{LAV} ◉{RST}");
         println!();
 
-        // Title in bright violet
-        println!("  \x1b[38;2;200;180;255m◆\x1b[38;2;230;220;255m\x1b[1m Setup Wizard{RST}");
+        // Title
+        println!("  {VB}◆{W} Setup Wizard{RST}");
         println!("  {D}  tracing causal connections{RST}");
         println!("  {D}  v{}{RST}", env!("CARGO_PKG_VERSION"));
         println!();
