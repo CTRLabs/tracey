@@ -237,6 +237,7 @@ async fn main() -> anyhow::Result<()> {
             graph.read().unwrap().edge_count(),
         );
         app.session_number = session_counter;
+        app.inject_welcome_dashboard();
         let result = app.run(&mut terminal).await;
 
         // Restore terminal
