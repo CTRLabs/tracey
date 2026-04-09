@@ -33,56 +33,52 @@ pub fn render_welcome(f: &mut Frame, area: Rect, info: &WelcomeInfo) {
     render_welcome_message(f, chunks[3]);
 }
 
-/// Render the massive ASCII art logo with gradient colors
+/// Render the ASCII art logo with per-LINE gradient colors
+/// (Per-character breaks with block elements — per-line is clean like Hermes)
 fn render_logo(f: &mut Frame, area: Rect) {
-    // Large figlet-style "TRACEY" — fills the width
-    let logo_lines: Vec<Line> = vec![
-        Line::from(""),
-        make_gradient_line("  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗", 0),
-        make_gradient_line("  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝", 1),
-        make_gradient_line("     ██║   ██████╔╝███████║██║     █████╗   ╚████╔╝ ", 2),
-        make_gradient_line("     ██║   ██╔══██╗██╔══██║██║     ██╔══╝    ╚██╔╝  ", 3),
-        make_gradient_line("     ██║   ██║  ██║██║  ██║╚██████╗███████╗   ██║   ", 4),
-        make_gradient_line("     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ", 5),
-        Line::from(""),
-        // Causal graph trace art
-        Line::from(vec![
-            Span::styled("        ◉", Style::default().fg(CHROME[1])),
-            Span::styled("──╌╌──▸", Style::default().fg(CHROME[5])),
-            Span::styled(" ◉", Style::default().fg(CHROME[1])),
-            Span::styled("──╌╌──▸", Style::default().fg(CHROME[5])),
-            Span::styled(" ◉", Style::default().fg(CHROME[1])),
-            Span::raw("     "),
-            Span::styled("tracing causal connections", Style::default().fg(CHROME[3]).add_modifier(Modifier::ITALIC)),
-        ]),
+    // Per-line gradient: bright at top → deep at bottom (liquid chrome)
+    let line_colors = [
+        CHROME[1],  // bright lavender
+        CHROME[2],  // chrome light
+        CHROME[3],  // light violet
+        CHROME[4],  // mid bright
+        CHROME[5],  // core violet
+        CHROME[6],  // deep mid
     ];
 
-    let paragraph = Paragraph::new(logo_lines).alignment(Alignment::Left);
-    f.render_widget(paragraph, area);
-}
+    let logo_text = [
+        "  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗",
+        "  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝",
+        "     ██║   ██████╔╝███████║██║     █████╗   ╚████╔╝ ",
+        "     ██║   ██╔══██╗██╔══██║██║     ██╔══╝    ╚██╔╝  ",
+        "     ██║   ██║  ██║██║  ██║╚██████╗███████╗   ██║   ",
+        "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
+    ];
 
-/// Create a gradient line — each character gets a different chrome color
-fn make_gradient_line(text: &str, line_idx: usize) -> Line<'static> {
-    let chars: Vec<char> = text.chars().collect();
-    let len = chars.len().max(1);
+    let mut lines: Vec<Line> = Vec::new();
+    lines.push(Line::from(""));
 
-    // Shift the gradient based on line index for a wave effect
-    let offset = line_idx as f64 * 0.08;
+    for (i, text) in logo_text.iter().enumerate() {
+        lines.push(Line::from(Span::styled(
+            text.to_string(),
+            Style::default().fg(line_colors[i]).add_modifier(Modifier::BOLD),
+        )));
+    }
 
-    let spans: Vec<Span> = chars
-        .iter()
-        .enumerate()
-        .map(|(i, ch)| {
-            let t = ((i as f64 / len as f64) + offset).min(1.0);
-            // Non-linear: quadratic ease into shadows
-            let t_curved = (t * t * 0.6 + t * 0.4).min(1.0);
-            let idx_f = t_curved * 7.0; // Use first 8 stops (the bright ones)
-            let idx = (idx_f as usize).min(7);
-            Span::styled(ch.to_string(), Style::default().fg(CHROME[idx]))
-        })
-        .collect();
+    lines.push(Line::from(""));
 
-    Line::from(spans)
+    // Causal graph trace art
+    lines.push(Line::from(vec![
+        Span::styled("        ◉", Style::default().fg(CHROME[2])),
+        Span::styled("──╌╌──▸", Style::default().fg(CHROME[6])),
+        Span::styled(" ◉", Style::default().fg(CHROME[2])),
+        Span::styled("──╌╌──▸", Style::default().fg(CHROME[6])),
+        Span::styled(" ◉", Style::default().fg(CHROME[2])),
+        Span::raw("     "),
+        Span::styled("tracing causal connections", Style::default().fg(CHROME[3]).add_modifier(Modifier::ITALIC)),
+    ]));
+
+    f.render_widget(Paragraph::new(lines), area);
 }
 
 /// Separator with version info

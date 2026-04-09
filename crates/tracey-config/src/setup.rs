@@ -51,6 +51,17 @@ impl SetupWizard {
     }
 
     fn print_header() {
+        // Per-LINE gradient (not per-character — block chars break with per-char ANSI)
+        // Liquid chrome: bright highlight at top, fading to deep violet at bottom
+        let colors = [
+            "\x1b[38;2;230;220;255m",  // bright lavender
+            "\x1b[38;2;200;180;255m",  // light violet
+            "\x1b[38;2;170;140;250m",  // mid violet
+            "\x1b[38;2;139;92;246m",   // core violet
+            "\x1b[38;2;110;70;220m",   // deep violet
+            "\x1b[38;2;85;50;190m",    // darker violet
+        ];
+
         let logo_lines = [
             "  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗",
             "  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝",
@@ -60,23 +71,19 @@ impl SetupWizard {
             "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
         ];
 
-        // Liquid chrome per-character gradient
         println!();
-        for line in &logo_lines {
-            println!("{}", chrome_gradient(line));
+        for (i, line) in logo_lines.iter().enumerate() {
+            println!("{}{line}{RST}", colors[i]);
         }
         println!();
 
-        // Chrome causal graph trace
-        let c = [
-            "\x1b[38;2;210;190;255m", // chrome light
-            "\x1b[38;2;85;50;190m",   // deep violet
-        ];
-        println!("  {0}    ◉{1}──╌╌──▸{0} ◉{1}──╌╌──▸{0} ◉{RST}", c[0], c[1]);
-        println!("  {1}              └──╌╌──▸{0} ◉{RST}", c[0], c[1]);
+        // Causal graph trace art (chrome light nodes, deep violet edges)
+        println!("  \x1b[38;2;210;190;255m    ◉\x1b[38;2;110;70;220m──╌╌──▸\x1b[38;2;210;190;255m ◉\x1b[38;2;110;70;220m──╌╌──▸\x1b[38;2;210;190;255m ◉{RST}");
+        println!("  \x1b[38;2;110;70;220m              └──╌╌──▸\x1b[38;2;210;190;255m ◉{RST}");
         println!();
 
-        println!("  {}", chrome_gradient("◆ Setup Wizard"));
+        // Title in bright violet
+        println!("  \x1b[38;2;200;180;255m◆\x1b[38;2;230;220;255m\x1b[1m Setup Wizard{RST}");
         println!("  {D}  tracing causal connections{RST}");
         println!("  {D}  v{}{RST}", env!("CARGO_PKG_VERSION"));
         println!();
