@@ -1,3 +1,4 @@
+use crate::commands::{handle_command, CommandResult};
 use crate::theme;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::prelude::*;
@@ -98,26 +99,39 @@ impl App {
                                 self.should_quit = true;
                             }
                         }
-                        // Submit message
+                        // Submit message or handle command
                         (KeyCode::Enter, _) if !self.is_processing => {
                             if !self.input.trim().is_empty() {
-                                let msg = self.input.clone();
+                                let input = self.input.clone();
                                 self.input.clear();
                                 self.cursor_pos = 0;
                                 self.scroll_offset = 0;
-                                self.messages.push(DisplayMessage {
-                                    role: MessageRole::User,
-                                    content: msg.clone(),
-                                    tool_name: None,
-                                    timestamp: now_time(),
-                                });
-                                let _ = self.ui_handle.submit(Submission::UserMessage {
-                                    content: msg,
-                                    attachments: vec![],
-                                }).await;
-                                self.is_processing = true;
-                                self.turn_count += 1;
-                                self.status = "thinking...".into();
+
+                                // Check for slash commands first
+                                match handle_command(self, &input) {
+                                    CommandResult::Handled => {
+                                        // Command processed locally
+                                    }
+                                    CommandResult::Quit => {
+                                        self.should_quit = true;
+                                    }
+                                    CommandResult::NotACommand => {
+                                        // Send to LLM
+                                        self.messages.push(DisplayMessage {
+                                            role: MessageRole::User,
+                                            content: input.clone(),
+                                            tool_name: None,
+                                            timestamp: now_time(),
+                                        });
+                                        let _ = self.ui_handle.submit(Submission::UserMessage {
+                                            content: input,
+                                            attachments: vec![],
+                                        }).await;
+                                        self.is_processing = true;
+                                        self.turn_count += 1;
+                                        self.status = "thinking...".into();
+                                    }
+                                }
                             }
                         }
                         // Text input
@@ -572,7 +586,7 @@ impl App {
     }
 }
 
-fn now_time() -> String {
+pub fn now_time() -> String {
     chrono::Local::now().format("%H:%M").to_string()
 }
 
