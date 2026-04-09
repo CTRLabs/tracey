@@ -25,6 +25,10 @@ struct Cli {
     /// Print mode (no TUI)
     #[arg(long)]
     print: bool,
+
+    /// OAuth login for a provider (nous, openai-codex)
+    #[arg(long)]
+    login: Option<String>,
 }
 
 #[tokio::main]
@@ -43,6 +47,34 @@ async fn main() -> anyhow::Result<()> {
     // Setup wizard
     if cli.setup {
         tracey_config::setup::SetupWizard::run()?;
+        return Ok(());
+    }
+
+    // OAuth login
+    if let Some(provider_name) = &cli.login {
+        let oauth_provider = match provider_name.as_str() {
+            "nous" => tracey_config::OAuthProvider::nous(),
+            "openai-codex" | "codex" => tracey_config::OAuthProvider::openai_codex(),
+            _ => {
+                eprintln!("\x1b[31merror\x1b[0m: unknown OAuth provider: {provider_name}");
+                eprintln!("Supported: nous, openai-codex");
+                std::process::exit(1);
+            }
+        };
+
+        match tracey_config::device_code_flow(&oauth_provider).await {
+            Ok(token) => {
+                // Save token to credential pool
+                let mut pool = tracey_config::CredentialPool::load().unwrap_or_default();
+                pool.add(&oauth_provider.name, token.access_token);
+                pool.save()?;
+                println!("  \x1b[38;2;34;197;94m✓\x1b[0m Credentials saved for {}", oauth_provider.name);
+            }
+            Err(e) => {
+                eprintln!("\x1b[31merror\x1b[0m: OAuth login failed: {e}");
+                std::process::exit(1);
+            }
+        }
         return Ok(());
     }
 

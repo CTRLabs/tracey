@@ -298,6 +298,48 @@ impl SetupWizard {
             return Ok(String::new());
         }
 
+        // Offer credential import from Claude Code / Codex
+        if provider.name == "anthropic" {
+            if let Some(token) = crate::oauth::import_claude_code_credentials() {
+                let masked = mask_key(&token);
+                println!("  {G}✓{RST} Found Claude Code credentials: {D}{masked}{RST}");
+                let use_it = Self::prompt(&format!("  {V}▸{RST} Use Claude Code credentials? [Y/n]: "))?;
+                if use_it.is_empty() || use_it.to_lowercase().starts_with('y') {
+                    return Ok(token);
+                }
+            }
+        }
+
+        if provider.name == "openai" {
+            if let Some((token, _refresh)) = crate::oauth::import_codex_credentials() {
+                let masked = mask_key(&token);
+                println!("  {G}✓{RST} Found Codex CLI credentials: {D}{masked}{RST}");
+                let use_it = Self::prompt(&format!("  {V}▸{RST} Use Codex credentials? [Y/n]: "))?;
+                if use_it.is_empty() || use_it.to_lowercase().starts_with('y') {
+                    return Ok(token);
+                }
+            }
+        }
+
+        // For providers that support OAuth, offer that option
+        let supports_oauth = matches!(provider.name.as_str(), "nous");
+        if supports_oauth {
+            println!();
+            println!("  {VB}Authentication method:{RST}");
+            println!("    {V}1{RST}) API key (paste directly)");
+            println!("    {V}2{RST}) OAuth (browser login)");
+            println!();
+            let method = Self::prompt(&format!("  {V}▸{RST} Choice [1]: "))?;
+
+            if method == "2" {
+                println!("  {D}OAuth login will open in your browser...{RST}");
+                println!("  {D}(OAuth requires async runtime — run 'tracey login' instead){RST}");
+                println!("  {D}Falling back to API key entry.{RST}");
+                // Note: actual OAuth flow needs async runtime which setup wizard doesn't have
+                // The proper flow would be: tracey login --provider nous
+            }
+        }
+
         // Check env first
         if let Ok(key) = std::env::var(&provider.api_key_env) {
             if !key.is_empty() {
