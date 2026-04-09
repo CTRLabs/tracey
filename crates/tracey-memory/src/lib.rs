@@ -1,1 +1,3 @@
-// MAGMA memory — Phase 2
+pub mod manager;
+
+pub use manager::{MemoryFact, MemoryKind, MemoryManager};
