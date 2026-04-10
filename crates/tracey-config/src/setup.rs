@@ -3,16 +3,17 @@ use crate::credentials::CredentialPool;
 use std::io::{self, Write};
 use tracey_core::TraceyResult;
 
-// Color palette using ANSI 256-color (works everywhere including tmux)
-const V: &str = "\x1b[38;5;135m";    // violet
-const VB: &str = "\x1b[38;5;141m";   // violet bright
-const VD: &str = "\x1b[38;5;97m";    // violet dim
-const LAV: &str = "\x1b[38;5;183m";  // lavender
-const W: &str = "\x1b[1;37m";        // white bold
-const D: &str = "\x1b[90m";          // dim
-const G: &str = "\x1b[38;5;35m";     // green
-const R: &str = "\x1b[38;5;196m";    // red
-const Y: &str = "\x1b[38;5;220m";    // yellow
+// Standard ANSI 8-color (works in EVERY terminal — same approach as Hermes)
+const V: &str = "\x1b[35m";      // magenta (our violet)
+const VB: &str = "\x1b[1;35m";   // bold magenta (bright violet)
+const VD: &str = "\x1b[2;35m";   // dim magenta
+const LAV: &str = "\x1b[95m";    // bright magenta (lavender-ish)
+const W: &str = "\x1b[1;37m";    // bold white
+const D: &str = "\x1b[90m";      // dim gray
+const G: &str = "\x1b[32m";      // green
+const R: &str = "\x1b[31m";      // red
+const Y: &str = "\x1b[33m";      // yellow
+const C: &str = "\x1b[36m";      // cyan
 const RST: &str = "\x1b[0m";
 
 pub struct SetupWizard;
@@ -123,42 +124,15 @@ impl SetupWizard {
     fn print_header() {
         println!();
 
-        // The logo IS a causal graph — shows the reasoning flow
-        let graph_colors = [
-            ("\x1b[38;5;252m", "\x1b[38;5;183m"), // silver node, lavender label
-            ("\x1b[38;5;251m", "\x1b[38;5;141m"),
-            ("\x1b[38;5;189m", "\x1b[38;5;135m"),
-            ("\x1b[38;5;183m", "\x1b[38;5;135m"),
-            ("\x1b[38;5;141m", "\x1b[38;5;97m"),
-        ];
-        let (s, l) = graph_colors[0]; // silver, lavender
-
-        // Animated: each line appears with a small delay
-        let lines = [
-            format!("                    {s}╭───────╮{RST}"),
-            format!("             {s}╭──────│{RST} {l}parse{RST} {s}│──────╮{RST}"),
-            format!("             {s}│{RST}      {s}╰───────╯{RST}      {s}│{RST}"),
-            format!("        {s}╭────▼───╮{RST}            {s}╭────▼───╮{RST}"),
-            format!("        {s}│{RST} {l}reason{RST} {s}│{RST}            {s}│{RST}  {l}act{RST}   {s}│{RST}"),
-            format!("        {s}╰────┬───╯{RST}            {s}╰────┬───╯{RST}"),
-            format!("             {s}│{RST}      {s}╭───────╮{RST}      {s}│{RST}"),
-            format!("             {s}╰──────│{RST}{l}verify{RST} {s}│──────╯{RST}"),
-            format!("                    {s}╰───┬───╯{RST}"),
-            format!("                        {s}│{RST}"),
-            format!("                   {s}╭────▼────╮{RST}"),
-            format!("                   {s}│{RST} {l}resolve{RST} {s}│{RST}"),
-            format!("                   {s}╰─────────╯{RST}"),
-        ];
-
-        for line in &lines {
-            println!("{line}");
-            std::thread::sleep(std::time::Duration::from_millis(25));
-        }
-
+        // Clean TRACEY text in bold magenta (basic ANSI — works everywhere)
+        println!("  {VB}TRACEY{RST}");
+        println!("  {D}tracing causal connections{RST}");
+        println!("  {D}v{}{RST}", env!("CARGO_PKG_VERSION"));
         println!();
-        println!("        {VB}{W}T  R  A  C  E  Y{RST}");
-        println!("    {D}tracing causal connections{RST}");
-        println!("    {D}v{}{RST}", env!("CARGO_PKG_VERSION"));
+
+        // Causal graph trace — our visual signature
+        println!("  {LAV}◉{VD}───▸{LAV} ◉{VD}───▸{LAV} ◉{RST}");
+        println!("  {VD}      └───▸{LAV} ◉{RST}");
         println!();
     }
 
