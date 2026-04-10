@@ -33,6 +33,15 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Force color support — many terminals support true color but
+    // don't advertise it properly (especially with tmux TERM values)
+    if std::env::var("NO_COLOR").is_err() {
+        // Ensure COLORTERM is set for crossterm color detection
+        if std::env::var("COLORTERM").is_err() {
+            std::env::set_var("COLORTERM", "truecolor");
+        }
+    }
+
     // Init tracing
     tracing_subscriber::fmt()
         .with_env_filter(
