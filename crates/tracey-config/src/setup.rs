@@ -23,26 +23,22 @@ impl SetupWizard {
         Self::detect_existing_config();
 
         // Step 1: Provider
-        println!("  {VB}Step 1/3{RST} {D}─────────────────────────────{RST}");
-        println!();
+        crate::interactive::print_section_header(1, 3, "Provider");
         let provider = Self::select_provider()?;
+        crate::interactive::animate_step("Provider selected", 1);
 
         // Step 2: API Key
-        println!();
-        println!("  {VB}Step 2/3{RST} {D}─────────────────────────────{RST}");
-        println!();
+        crate::interactive::print_section_header(2, 3, "Authentication");
         let api_key = Self::get_api_key(&provider)?;
-
-        // Test connection
         if !api_key.is_empty() {
             Self::test_connection(&provider, &api_key);
         }
+        crate::interactive::animate_step("Authenticated", 2);
 
         // Step 3: Model
-        println!();
-        println!("  {VB}Step 3/3{RST} {D}─────────────────────────────{RST}");
-        println!();
+        crate::interactive::print_section_header(3, 3, "Model");
         let model = Self::select_model(&provider)?;
+        crate::interactive::animate_step("Model configured", 3);
 
         // Save everything
         Self::save_config(&provider, &api_key, &model)?;
@@ -51,15 +47,14 @@ impl SetupWizard {
     }
 
     fn print_header() {
-        // Per-LINE gradient using ANSI 256-color (works in tmux and all terminals)
-        // Falls back gracefully — these are the closest violet/purple stops in 256-color
+        // Liquid chrome: silver at top → violet at bottom
         let colors = [
-            "\x1b[38;5;183m",  // light lavender (183)
-            "\x1b[38;5;141m",  // light violet (141)
-            "\x1b[38;5;135m",  // violet (135) — our primary
-            "\x1b[38;5;98m",   // medium purple (98)
-            "\x1b[38;5;97m",   // dark violet (97)
-            "\x1b[38;5;55m",   // deep purple (55)
+            "\x1b[38;5;252m",  // bright silver
+            "\x1b[38;5;251m",  // silver
+            "\x1b[38;5;189m",  // silver-lavender
+            "\x1b[38;5;183m",  // lavender
+            "\x1b[38;5;141m",  // light violet
+            "\x1b[38;5;135m",  // violet
         ];
 
         let logo_lines = [
@@ -169,39 +164,45 @@ impl SetupWizard {
     }
 
     fn select_provider() -> TraceyResult<ProviderEntry> {
-        println!("  {VB}Select your LLM provider:{RST}");
-        println!();
+        use crate::interactive::{select_menu, MenuItem};
 
-        // Check which providers have keys available
         let has_anthropic = std::env::var("ANTHROPIC_API_KEY").map_or(false, |v| !v.is_empty());
         let has_openai = std::env::var("OPENAI_API_KEY").map_or(false, |v| !v.is_empty());
         let has_ollama = is_ollama_running();
+        let has_copilot = std::env::var("COPILOT_GITHUB_TOKEN").is_ok();
 
-        let key_found = format!("{G}● key found{RST}");
-        let running = format!("{G}● running{RST}");
-        let not_detected = format!("{D}○ not detected{RST}");
-        let empty = String::new();
+        let items = vec![
+            MenuItem::new("Anthropic (Claude)")
+                .with_indicator(if has_anthropic { "● key found" } else { "" }),
+            MenuItem::new("OpenAI (GPT / Codex)")
+                .with_indicator(if has_openai { "● key found" } else { "" }),
+            MenuItem::new("Google (Gemini)"),
+            MenuItem::new("Ollama (local)")
+                .with_indicator(if has_ollama { "● running" } else { "○ not detected" }),
+            MenuItem::new("OpenRouter (200+ models)"),
+            MenuItem::new("DeepSeek"),
+            MenuItem::new("Together AI"),
+            MenuItem::new("Groq (fast inference)"),
+            MenuItem::new("xAI / Grok"),
+            MenuItem::new("Fireworks AI"),
+            MenuItem::new("Kimi / Moonshot"),
+            MenuItem::new("Alibaba DashScope"),
+            MenuItem::new("GitHub Copilot")
+                .with_indicator(if has_copilot { "● token found" } else { "" }),
+            MenuItem::new("Custom (OpenAI-compatible)"),
+        ];
 
-        println!("    {V}1{RST}) Anthropic (Claude)        {}", if has_anthropic { &key_found } else { &empty });
-        println!("    {V}2{RST}) OpenAI (GPT / Codex)      {}", if has_openai { &key_found } else { &empty });
-        println!("    {V}3{RST}) Google (Gemini)");
-        println!("    {V}4{RST}) Ollama (local)             {}", if has_ollama { &running } else { &not_detected });
-        println!("    {V}5{RST}) OpenRouter (200+ models)");
-        println!("    {V}6{RST}) DeepSeek");
-        println!("    {V}7{RST}) Together AI");
-        println!("    {V}8{RST}) Groq (fast inference)");
-        println!("    {V}9{RST}) xAI / Grok");
-        println!("    {V}10{RST}) Fireworks AI");
-        println!("    {V}11{RST}) Kimi / Moonshot");
-        println!("    {V}12{RST}) Alibaba DashScope");
-        println!("    {V}13{RST}) GitHub Copilot             {}", if std::env::var("COPILOT_GITHUB_TOKEN").is_ok() { format!("{G}● token found{RST}") } else { String::new() });
-        println!("    {V}14{RST}) Custom (OpenAI-compatible)");
-        println!();
+        // Add blank lines for the menu to render into
+        for _ in 0..items.len() + 5 {
+            println!();
+        }
 
-        let choice = Self::prompt(&format!("  {V}▸{RST} Choice [1]: "))?;
-        let choice = if choice.is_empty() { "1".to_string() } else { choice };
+        let choice = select_menu("Select your LLM provider:", &items)
+            .ok_or_else(|| tracey_core::TraceyError::Config("selection cancelled".into()))?;
 
-        match choice.as_str() {
+        let choice_str = (choice + 1).to_string();
+
+        match choice_str.as_str() {
             "1" => Ok(ProviderEntry {
                 name: "anthropic".into(),
                 base_url: "https://api.anthropic.com".into(),
