@@ -1,4 +1,5 @@
 pub mod app;
+pub mod art;
 pub mod banner;
 pub mod commands;
 pub mod logo;

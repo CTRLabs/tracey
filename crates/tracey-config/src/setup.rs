@@ -22,6 +22,11 @@ impl SetupWizard {
         Self::print_header();
         Self::detect_existing_config();
 
+        // Quick import: if Claude Code or Codex credentials exist, offer one-click setup
+        if let Some(quick) = Self::try_quick_import()? {
+            return Ok(());
+        }
+
         // Step 1: Provider
         crate::interactive::print_section_header(1, 3, "Provider");
         let provider = Self::select_provider()?;
@@ -66,15 +71,24 @@ impl SetupWizard {
             "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
         ];
 
+        // Logo with silver→violet gradient
         println!();
         for (i, line) in logo_lines.iter().enumerate() {
             println!("{}{line}{RST}", colors[i]);
         }
         println!();
 
-        // Causal graph trace art
-        println!("  {LAV}    ◉{VD}──╌╌──▸{LAV} ◉{VD}──╌╌──▸{LAV} ◉{RST}");
-        println!("  {VD}              └──╌╌──▸{LAV} ◉{RST}");
+        // Braille causal graph emblem (compact version, same technique as Hermes caduceus)
+        let emblem = [
+            ("⠀⠀⠀⣀⣤⣶⣿⣿⣶⣤⣀⠀⠀⠀", "\x1b[38;5;252m"),
+            ("⠀⣠⣾⡿⠋⣿⡟⢿⣿⠙⢿⣷⣄⠀", "\x1b[38;5;189m"),
+            ("⣼⣿⠃⢀⣾⠟⠀⠀⠻⣷⡀⠘⣿⣧", "\x1b[38;5;183m"),
+            ("⠸⣿⣧⡈⢿⣷⣶⣶⣾⡿⢁⣼⣿⠇", "\x1b[38;5;141m"),
+            ("⠀⠀⠉⠛⠿⣶⣤⣤⣶⠿⠛⠉⠀⠀", "\x1b[38;5;135m"),
+        ];
+        for (art, color) in &emblem {
+            println!("  {color}{art}{RST}");
+        }
         println!();
 
         // Title
@@ -402,78 +416,104 @@ impl SetupWizard {
     }
 
     fn select_model(provider: &ProviderEntry) -> TraceyResult<String> {
-        let defaults = match provider.name.as_str() {
+        use crate::interactive::{select_menu, MenuItem};
+
+        // Complete model lists (from Hermes model_metadata.py + provider docs)
+        let models: Vec<(&str, &str)> = match provider.name.as_str() {
             "anthropic" => vec![
-                ("1", "claude-sonnet-4-20250514", "Claude Sonnet 4", "recommended — best balance"),
-                ("2", "claude-opus-4-6-20250610", "Claude Opus 4.6", "most capable (1M context)"),
-                ("3", "claude-haiku-4-5-20251001", "Claude Haiku 4.5", "fastest, cheapest"),
+                ("claude-sonnet-4-20250514", "Claude Sonnet 4 — recommended, best balance"),
+                ("claude-opus-4-6-20250610", "Claude Opus 4.6 — most capable, 1M context"),
+                ("claude-sonnet-4-6-20250610", "Claude Sonnet 4.6 — latest sonnet"),
+                ("claude-haiku-4-5-20251001", "Claude Haiku 4.5 — fastest, cheapest"),
             ],
             "openai" => vec![
-                ("1", "gpt-4o", "GPT-4o", "recommended"),
-                ("2", "gpt-4o-mini", "GPT-4o Mini", "fast, cheap"),
-                ("3", "o3-mini", "o3 Mini", "reasoning"),
-                ("4", "gpt-5.4-mini", "GPT-5.4 Mini", "latest, if available"),
-            ],
-            "ollama" => vec![
-                ("1", "qwen2.5-coder:32b", "Qwen 2.5 Coder 32B", "best local code"),
-                ("2", "deepseek-coder-v2:16b", "DeepSeek Coder V2", "good balance"),
-                ("3", "llama3.3:70b", "Llama 3.3 70B", "strong general"),
-                ("4", "codellama:34b", "Code Llama 34B", "Meta's code model"),
-            ],
-            "openrouter" => vec![
-                ("1", "anthropic/claude-sonnet-4-20250514", "Claude Sonnet 4", "via OpenRouter"),
-                ("2", "openai/gpt-4o", "GPT-4o", "via OpenRouter"),
-                ("3", "google/gemini-2.5-pro", "Gemini 2.5 Pro", "via OpenRouter"),
-                ("4", "deepseek/deepseek-coder", "DeepSeek Coder", "via OpenRouter"),
-            ],
-            "deepseek" => vec![
-                ("1", "deepseek-coder", "DeepSeek Coder V3", "optimized for code"),
-                ("2", "deepseek-chat", "DeepSeek Chat V3", "general purpose"),
-            ],
-            "together" => vec![
-                ("1", "Qwen/Qwen2.5-Coder-32B-Instruct", "Qwen 2.5 Coder 32B", "best open-source code"),
-                ("2", "meta-llama/Llama-3.3-70B-Instruct-Turbo", "Llama 3.3 70B", "fast, general"),
-                ("3", "deepseek-ai/DeepSeek-V3", "DeepSeek V3", "very capable"),
-            ],
-            "groq" => vec![
-                ("1", "llama-3.3-70b-versatile", "Llama 3.3 70B", "fast inference"),
-                ("2", "mixtral-8x7b-32768", "Mixtral 8x7B", "32K context"),
-                ("3", "gemma2-9b-it", "Gemma 2 9B", "compact, fast"),
-            ],
-            "xai" => vec![
-                ("1", "grok-2", "Grok 2", "latest"),
-                ("2", "grok-2-mini", "Grok 2 Mini", "fast"),
-            ],
-            "fireworks" => vec![
-                ("1", "accounts/fireworks/models/qwen2p5-coder-32b-instruct", "Qwen 2.5 Coder 32B", "code-optimized"),
-                ("2", "accounts/fireworks/models/llama-v3p3-70b-instruct", "Llama 3.3 70B", "general"),
+                ("gpt-4o", "GPT-4o — recommended"),
+                ("gpt-4o-mini", "GPT-4o Mini — fast, cheap"),
+                ("o3-mini", "o3 Mini — reasoning"),
+                ("o4-mini", "o4 Mini — latest reasoning"),
+                ("gpt-5.4", "GPT-5.4 — latest, if available"),
+                ("gpt-5.4-mini", "GPT-5.4 Mini — fast latest"),
+                ("gpt-5.3-codex", "GPT-5.3 Codex — code-optimized"),
             ],
             "gemini" => vec![
-                ("1", "gemini-2.5-pro", "Gemini 2.5 Pro", "recommended"),
-                ("2", "gemini-2.5-flash", "Gemini 2.5 Flash", "fast, cheap"),
-                ("3", "gemini-3.1-pro", "Gemini 3.1 Pro", "latest, if available"),
+                ("gemini-2.5-pro", "Gemini 2.5 Pro — recommended"),
+                ("gemini-2.5-flash", "Gemini 2.5 Flash — fast"),
+                ("gemini-2.0-flash", "Gemini 2.0 Flash — stable"),
+                ("gemini-3.1-pro", "Gemini 3.1 Pro — latest"),
+            ],
+            "ollama" => vec![
+                ("qwen2.5-coder:32b", "Qwen 2.5 Coder 32B — best local code"),
+                ("llama3.3:70b", "Llama 3.3 70B — strong general"),
+                ("deepseek-coder-v2:16b", "DeepSeek Coder V2 — good balance"),
+                ("codellama:34b", "Code Llama 34B — Meta code model"),
+                ("mistral:7b", "Mistral 7B — lightweight"),
+                ("phi-3:14b", "Phi-3 14B — Microsoft compact"),
+                ("gemma2:9b", "Gemma 2 9B — Google compact"),
+            ],
+            "openrouter" => vec![
+                ("anthropic/claude-sonnet-4-20250514", "Claude Sonnet 4"),
+                ("anthropic/claude-opus-4-6-20250610", "Claude Opus 4.6"),
+                ("openai/gpt-4o", "GPT-4o"),
+                ("google/gemini-2.5-pro", "Gemini 2.5 Pro"),
+                ("deepseek/deepseek-coder", "DeepSeek Coder"),
+                ("meta-llama/llama-3.3-70b-instruct", "Llama 3.3 70B"),
+                ("qwen/qwen-2.5-coder-32b-instruct", "Qwen 2.5 Coder 32B"),
+                ("mistralai/mixtral-8x22b-instruct", "Mixtral 8x22B"),
+            ],
+            "deepseek" => vec![
+                ("deepseek-coder", "DeepSeek Coder V3 — code-optimized"),
+                ("deepseek-chat", "DeepSeek Chat V3 — general purpose"),
+                ("deepseek-reasoner", "DeepSeek R1 — reasoning"),
+            ],
+            "together" => vec![
+                ("Qwen/Qwen2.5-Coder-32B-Instruct", "Qwen 2.5 Coder 32B"),
+                ("meta-llama/Llama-3.3-70B-Instruct-Turbo", "Llama 3.3 70B"),
+                ("deepseek-ai/DeepSeek-V3", "DeepSeek V3"),
+                ("mistralai/Mixtral-8x22B-Instruct-v0.1", "Mixtral 8x22B"),
+            ],
+            "groq" => vec![
+                ("llama-3.3-70b-versatile", "Llama 3.3 70B — fast"),
+                ("llama-3.1-8b-instant", "Llama 3.1 8B — instant"),
+                ("mixtral-8x7b-32768", "Mixtral 8x7B — 32K context"),
+                ("gemma2-9b-it", "Gemma 2 9B — compact"),
+            ],
+            "xai" => vec![
+                ("grok-2", "Grok 2 — latest"),
+                ("grok-2-mini", "Grok 2 Mini — fast"),
+            ],
+            "fireworks" => vec![
+                ("accounts/fireworks/models/qwen2p5-coder-32b-instruct", "Qwen 2.5 Coder 32B"),
+                ("accounts/fireworks/models/llama-v3p3-70b-instruct", "Llama 3.3 70B"),
+                ("accounts/fireworks/models/deepseek-v3", "DeepSeek V3"),
+            ],
+            "moonshot" => vec![
+                ("moonshot-v1-128k", "Moonshot V1 — 128K context"),
+                ("moonshot-v1-32k", "Moonshot V1 — 32K context"),
             ],
             _ => vec![
-                ("1", "auto", "Auto-detect", "let the provider decide"),
+                ("auto", "Auto-detect"),
             ],
         };
 
-        println!("  {VB}Select model:{RST}");
-        println!();
-        for (num, _, name, desc) in &defaults {
-            println!("    {V}{num}{RST}) {W}{name}{RST}  {D}— {desc}{RST}");
+        let mut items: Vec<MenuItem> = models
+            .iter()
+            .map(|(_, desc)| MenuItem::new(*desc))
+            .collect();
+        items.push(MenuItem::new("Custom model name..."));
+
+        // Add blank lines for the menu
+        for _ in 0..items.len() + 5 {
+            println!();
         }
-        println!("    {V}c{RST}) Custom model name");
-        println!();
 
-        let choice = Self::prompt(&format!("  {V}▸{RST} Choice [1]: "))?;
-        let choice = if choice.is_empty() { "1".to_string() } else { choice };
+        let choice = select_menu("Select model:", &items)
+            .ok_or_else(|| tracey_core::TraceyError::Config("selection cancelled".into()))?;
 
-        if choice == "c" {
+        if choice >= models.len() {
+            // Custom model
             Self::prompt(&format!("  {V}▸{RST} Model name: "))
         } else {
-            let idx: usize = choice.parse().unwrap_or(1);
-            Ok(defaults.get(idx - 1).map_or("auto".into(), |(_, m, _, _)| m.to_string()))
+            Ok(models[choice].0.to_string())
         }
     }
 
@@ -516,6 +556,64 @@ impl SetupWizard {
         println!();
 
         Ok(())
+    }
+
+    /// Try to import credentials from Claude Code or Codex CLI.
+    /// If found and accepted, creates full config and returns Ok(Some(())).
+    fn try_quick_import() -> TraceyResult<Option<()>> {
+        // Check Claude Code
+        if let Some(token) = crate::oauth::import_claude_code_credentials() {
+            let masked = mask_key(&token);
+            println!("  {VB}Quick Setup:{RST} Claude Code credentials found");
+            println!("  {D}Token: {masked}{RST}");
+            println!();
+            let use_it = Self::prompt(&format!("  {V}▸{RST} Import Claude Code credentials? [Y/n]: "))?;
+            if use_it.is_empty() || use_it.to_lowercase().starts_with('y') {
+                let provider = ProviderEntry {
+                    name: "anthropic".into(),
+                    base_url: "https://api.anthropic.com".into(),
+                    api_key_env: "ANTHROPIC_API_KEY".into(),
+                    transport: Transport::AnthropicMessages,
+                };
+                let model = "claude-sonnet-4-20250514".to_string();
+                Self::save_config(&provider, &token, &model)?;
+
+                crate::interactive::animate_step("Imported Claude Code credentials", 1);
+                crate::interactive::animate_step("Provider: Anthropic", 2);
+                crate::interactive::animate_step("Model: Claude Sonnet 4", 3);
+                crate::interactive::animate_step("✓ Ready to trace", 4);
+                println!();
+                return Ok(Some(()));
+            }
+        }
+
+        // Check Codex CLI
+        if let Some((token, _refresh)) = crate::oauth::import_codex_credentials() {
+            let masked = mask_key(&token);
+            println!("  {VB}Quick Setup:{RST} Codex CLI credentials found");
+            println!("  {D}Token: {masked}{RST}");
+            println!();
+            let use_it = Self::prompt(&format!("  {V}▸{RST} Import Codex credentials? [Y/n]: "))?;
+            if use_it.is_empty() || use_it.to_lowercase().starts_with('y') {
+                let provider = ProviderEntry {
+                    name: "openai".into(),
+                    base_url: "https://api.openai.com/v1".into(),
+                    api_key_env: "OPENAI_API_KEY".into(),
+                    transport: Transport::OpenAiChat,
+                };
+                let model = "gpt-4o".to_string();
+                Self::save_config(&provider, &token, &model)?;
+
+                crate::interactive::animate_step("Imported Codex credentials", 1);
+                crate::interactive::animate_step("Provider: OpenAI", 2);
+                crate::interactive::animate_step("Model: GPT-4o", 3);
+                crate::interactive::animate_step("✓ Ready to trace", 4);
+                println!();
+                return Ok(Some(()));
+            }
+        }
+
+        Ok(None)
     }
 
     fn prompt(message: &str) -> TraceyResult<String> {
