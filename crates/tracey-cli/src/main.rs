@@ -29,6 +29,10 @@ struct Cli {
     /// OAuth login for a provider (nous, openai-codex)
     #[arg(long)]
     login: Option<String>,
+
+    /// Continue the last session
+    #[arg(long, short = 'c')]
+    continue_session: bool,
 }
 
 #[tokio::main]
@@ -333,6 +337,15 @@ fn build_system_prompt(
         prompt.push_str(&format!("# Instructions ({})\n\n", file.path.display()));
         prompt.push_str(&file.content);
         prompt.push_str("\n\n");
+    }
+
+    // Add git context (like Claude Code and Aider do)
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let git_ctx = tracey_agent::git_context(&cwd);
+    if !git_ctx.is_empty() {
+        prompt.push_str("# Git Context\n\n");
+        prompt.push_str(&git_ctx);
+        prompt.push('\n');
     }
 
     prompt

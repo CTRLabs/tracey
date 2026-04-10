@@ -1,8 +1,20 @@
-//! Animation frames for the TUI (ratatui context).
-//! Uses only box-drawing + symbols that render cleanly.
+//! ASCII art and animation frames. Only uses chars that render in all terminals.
 
-/// Thinking spinner — causal graph traces right
-pub const GRAPH_TRACE_FRAMES: [&str; 8] = [
+/// Figlet "slant" font TRACEY — only uses /\-_| characters (no block chars)
+pub const FIGLET_TRACEY: &str = r#"
+  ______
+ /_  __/______ _________  __  __
+  / / / ___/ _` / ___/ _ \/ / / /
+ / / / /  / /_/ / /__/  __/ /_/ /
+/_/ /_/   \__,_/\___/\___/\__, /
+                          /____/
+"#;
+
+/// Compact TRACEY for narrow terminals
+pub const TRACEY_COMPACT: &str = "T R A C E Y";
+
+/// Graph trace frames (thinking animation)
+pub const TRACE_FRAMES: [&str; 8] = [
     "◉",
     "◉───",
     "◉─────▸",
@@ -13,11 +25,8 @@ pub const GRAPH_TRACE_FRAMES: [&str; 8] = [
     "◉─────▸ ◉─────▸ ◉──▸",
 ];
 
-/// Tool execution — pulsing node
+/// Tool call pulse
 pub const PULSE_FRAMES: [&str; 6] = ["◇", "◈", "◆", "●", "◆", "◈"];
 
-/// Verification — spreading
+/// Verification spreading
 pub const VERIFY_FRAMES: [&str; 6] = ["○", "◎", "◉", "●", "◉", "◎"];
-
-/// Edge animation
-pub const EDGE_FRAMES: [&str; 4] = ["───▸", "╌╌╌▸", "───▸", "━━━▸"];

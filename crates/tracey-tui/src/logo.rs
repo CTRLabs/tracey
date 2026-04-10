@@ -81,7 +81,7 @@ pub struct Spinner {
 
 impl Spinner {
     pub fn thinking() -> Self {
-        Self { frames: crate::art::GRAPH_TRACE_FRAMES.to_vec(), index: 0 }
+        Self { frames: crate::art::TRACE_FRAMES.to_vec(), index: 0 }
     }
     pub fn tool_call() -> Self {
         Self { frames: crate::art::PULSE_FRAMES.to_vec(), index: 0 }

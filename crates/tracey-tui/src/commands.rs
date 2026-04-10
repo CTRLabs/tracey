@@ -59,6 +59,14 @@ pub fn handle_command(app: &mut App, input: &str) -> CommandResult {
             cmd_status(app);
             CommandResult::Handled
         }
+        "/commit" => {
+            cmd_commit(app, args);
+            CommandResult::Handled
+        }
+        "/diff" => {
+            cmd_diff(app);
+            CommandResult::Handled
+        }
         "/quit" | "/exit" | "/q" => {
             CommandResult::Quit
         }
@@ -80,6 +88,8 @@ fn cmd_help(app: &mut App) {
 ### Session
   /clear, /reset     — Clear conversation and start fresh
   /compact [focus]    — Compress conversation context
+  /commit [msg]       — Git commit all changes
+  /diff               — Show uncommitted changes
   /quit, /exit        — Exit Tracey
 
 ### Info
@@ -345,6 +355,52 @@ fn estimate_cost(model: &str, tokens: u64) -> f64 {
     };
 
     (tokens as f64 / 1_000_000.0) * (per_million / 2.0) // rough avg of in/out
+}
+
+fn cmd_commit(app: &mut App, message: &str) {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let msg = if message.is_empty() { "tracey: auto-commit" } else { message };
+
+    match tracey_agent::git::git_commit(&cwd, msg) {
+        Ok(output) => {
+            app.messages.push(DisplayMessage {
+                role: MessageRole::System,
+                content: format!("✓ Committed: {output}"),
+                tool_name: None,
+                timestamp: crate::app::now_time(),
+            });
+        }
+        Err(e) => {
+            app.messages.push(DisplayMessage {
+                role: MessageRole::Error,
+                content: format!("commit failed: {e}"),
+                tool_name: None,
+                timestamp: crate::app::now_time(),
+            });
+        }
+    }
+}
+
+fn cmd_diff(app: &mut App) {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    match tracey_agent::git::git_diff(&cwd) {
+        Some(diff) => {
+            app.messages.push(DisplayMessage {
+                role: MessageRole::System,
+                content: format!("## Git Diff\n\n```\n{diff}\n```"),
+                tool_name: None,
+                timestamp: crate::app::now_time(),
+            });
+        }
+        None => {
+            app.messages.push(DisplayMessage {
+                role: MessageRole::Error,
+                content: "Not a git repository".into(),
+                tool_name: None,
+                timestamp: crate::app::now_time(),
+            });
+        }
+    }
 }
 
 /// Make now_time public for use in commands
