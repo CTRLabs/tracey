@@ -33,50 +33,47 @@ pub fn render_welcome(f: &mut Frame, area: Rect, info: &WelcomeInfo) {
     render_welcome_message(f, chunks[3]);
 }
 
-/// Render the ASCII art logo with per-LINE gradient colors
-/// (Per-character breaks with block elements — per-line is clean like Hermes)
+/// Render the logo with per-LINE 256-color gradient + braille emblem
 fn render_logo(f: &mut Frame, area: Rect) {
-    // Per-line gradient: bright at top → deep at bottom (liquid chrome)
+    // Silver → violet gradient (liquid chrome: metallic at top, colored at bottom)
     let line_colors = [
-        CHROME[1],  // bright lavender
-        CHROME[2],  // chrome light
-        CHROME[3],  // light violet
-        CHROME[4],  // mid bright
+        CHROME[0],  // bright silver
+        CHROME[1],  // silver
+        CHROME[2],  // silver-lavender
+        CHROME[3],  // lavender
+        CHROME[4],  // light violet
         CHROME[5],  // core violet
-        CHROME[6],  // deep mid
     ];
 
     let logo_text = [
-        "  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗",
-        "  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝",
-        "     ██║   ██████╔╝███████║██║     █████╗   ╚████╔╝ ",
-        "     ██║   ██╔══██╗██╔══██║██║     ██╔══╝    ╚██╔╝  ",
-        "     ██║   ██║  ██║██║  ██║╚██████╗███████╗   ██║   ",
-        "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
+        " TRACEY",
+        " ══════",
     ];
 
     let mut lines: Vec<Line> = Vec::new();
     lines.push(Line::from(""));
 
-    for (i, text) in logo_text.iter().enumerate() {
-        lines.push(Line::from(Span::styled(
-            text.to_string(),
-            Style::default().fg(line_colors[i]).add_modifier(Modifier::BOLD),
-        )));
-    }
-
+    // Simple clean text logo (block chars garble in some terminals)
+    lines.push(Line::from(Span::styled(
+        " T R A C E Y",
+        Style::default().fg(CHROME[0]).add_modifier(Modifier::BOLD),
+    )));
+    lines.push(Line::from(Span::styled(
+        " ═══════════════",
+        Style::default().fg(CHROME[3]),
+    )));
     lines.push(Line::from(""));
 
-    // Braille causal graph emblem (like Hermes's caduceus)
+    // Braille causal graph emblem
     let emblem_colors = [
-        CHROME[0], CHROME[0], CHROME[1], CHROME[1], CHROME[2],
-        CHROME[2], CHROME[3], CHROME[3], CHROME[4], CHROME[4],
-        CHROME[5], CHROME[5], CHROME[6], CHROME[7], CHROME[7],
+        CHROME[0], CHROME[0], CHROME[1], CHROME[2], CHROME[2],
+        CHROME[3], CHROME[3], CHROME[4], CHROME[4], CHROME[5],
+        CHROME[5], CHROME[6], CHROME[7], CHROME[7], CHROME[8],
     ];
     for (i, art_line) in crate::art::CAUSAL_GRAPH_EMBLEM.iter().enumerate() {
         let color = emblem_colors.get(i).copied().unwrap_or(CHROME[5]);
         lines.push(Line::from(Span::styled(
-            format!("    {art_line}"),
+            format!("  {art_line}"),
             Style::default().fg(color),
         )));
     }
