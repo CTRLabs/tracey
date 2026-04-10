@@ -28,30 +28,27 @@ impl SetupWizard {
             return Ok(());
         }
 
-        // The wizard IS a causal graph — each step is a node that animates in
-        println!("  {D}Setting up your causal graph...{RST}");
+        // The wizard IS a causal graph — each step animates as a node
+        println!("  {D}Building your causal graph...{RST}");
         println!();
 
-        // Step 1: Provider node
-        Self::animate_node_start("provider");
+        // Step 1: Provider
         let provider = Self::select_provider()?;
-        Self::animate_node_complete("provider", &provider.name);
+        animate_wizard_step(0, "provider", &provider.name, false);
 
-        // Step 2: Auth node
-        Self::animate_node_start("auth");
+        // Step 2: Authentication
         let api_key = Self::get_api_key(&provider)?;
         if !api_key.is_empty() {
             Self::test_connection(&provider, &api_key);
         }
-        Self::animate_node_complete("auth", "authenticated");
+        animate_wizard_step(1, "auth", "verified", false);
 
-        // Step 3: Model node
-        Self::animate_node_start("model");
+        // Step 3: Model
         let model = Self::select_model(&provider)?;
-        Self::animate_node_complete("model", &model);
+        animate_wizard_step(2, "model", &model, false);
 
-        // Final node: ready
-        Self::animate_final_node();
+        // Final: ready
+        animate_wizard_step(3, "ready", "tracing causal connections", true);
 
         // Save everything
         Self::save_config(&provider, &api_key, &model)?;
@@ -59,81 +56,11 @@ impl SetupWizard {
         Ok(())
     }
 
-    fn animate_node_start(name: &str) {
-        let mut out = std::io::stdout();
-        use std::io::Write;
-
-        // Edge from previous
-        write!(out, "  {VD}     │{RST}\n").ok();
-        out.flush().ok();
-        std::thread::sleep(std::time::Duration::from_millis(40));
-
-        // Node box top
-        write!(out, "  {V}╭────────╮{RST}\n").ok();
-        out.flush().ok();
-        std::thread::sleep(std::time::Duration::from_millis(30));
-
-        // Node label
-        write!(out, "  {V}│{RST} {VB}{name:<6}{RST} {V}│{RST}───▸ ").ok();
-        out.flush().ok();
-        std::thread::sleep(std::time::Duration::from_millis(20));
-
-        println!("{D}configuring...{RST}");
-
-        // Node box bottom
-        write!(out, "  {V}╰────────╯{RST}\n").ok();
-        out.flush().ok();
-        println!();
-    }
-
-    fn animate_node_complete(name: &str, result: &str) {
-        // Move cursor up to overwrite the "configuring..." line
-        // (This is approximate — we print the completion below)
-        println!();
-        let mut out = std::io::stdout();
-        use std::io::Write;
-
-        write!(out, "  {G}✓{RST} {VB}{name}{RST} ───▸ {LAV}{result}{RST}\n").ok();
-        out.flush().ok();
-        std::thread::sleep(std::time::Duration::from_millis(30));
-    }
-
-    fn animate_final_node() {
-        let mut out = std::io::stdout();
-        use std::io::Write;
-
-        write!(out, "\n  {VD}     │{RST}\n").ok();
-        out.flush().ok();
-        std::thread::sleep(std::time::Duration::from_millis(60));
-
-        write!(out, "  {V}╭────────╮{RST}\n").ok();
-        out.flush().ok();
-        std::thread::sleep(std::time::Duration::from_millis(40));
-
-        write!(out, "  {V}│{RST} {G}{W}ready {RST} {V}│{RST}───▸ ").ok();
-        out.flush().ok();
-        std::thread::sleep(std::time::Duration::from_millis(40));
-
-        println!("{G}◉ tracing causal connections{RST}");
-
-        write!(out, "  {V}╰────────╯{RST}\n").ok();
-        out.flush().ok();
-        println!();
-    }
+    // Wizard step animations are now in tracey_tui::art::animate_wizard_step()
 
     fn print_header() {
-        println!();
-
-        // Clean TRACEY text in bold magenta (basic ANSI — works everywhere)
-        println!("  {VB}TRACEY{RST}");
-        println!("  {D}tracing causal connections{RST}");
-        println!("  {D}v{}{RST}", env!("CARGO_PKG_VERSION"));
-        println!();
-
-        // Causal graph trace — our visual signature
-        println!("  {LAV}◉{VD}───▸{LAV} ◉{VD}───▸{LAV} ◉{RST}");
-        println!("  {VD}      └───▸{LAV} ◉{RST}");
-        println!();
+        // Animated causal graph logo
+        animate_graph_logo();
     }
 
     fn detect_existing_config() {
@@ -677,6 +604,100 @@ fn is_ollama_running() -> bool {
         &"127.0.0.1:11434".parse().unwrap(),
         std::time::Duration::from_millis(500),
     ).is_ok()
+}
+
+/// Animated causal graph logo for setup header
+fn animate_graph_logo() {
+    use std::io::Write;
+    let mut out = std::io::stdout();
+    let m = "\x1b[35m";     // magenta
+    let bm = "\x1b[1;95m";  // bright magenta
+    let c = "\x1b[36m";     // cyan
+    let d = "\x1b[90m";     // dim
+    let rst = "\x1b[0m";
+
+    println!();
+
+    // Typewriter "TRACEY"
+    write!(out, "  ").ok();
+    for ch in "T R A C E Y".chars() {
+        write!(out, "{bm}{ch}{rst}").ok();
+        out.flush().ok();
+        std::thread::sleep(std::time::Duration::from_millis(30));
+    }
+    println!();
+    println!("  {d}tracing causal connections{rst}");
+    println!("  {d}v{}{rst}", env!("CARGO_PKG_VERSION"));
+    println!();
+
+    // Animated trace — each segment appears
+    let parts = [
+        format!("  {c}◉{rst}"),
+        format!("{m}─────▸{rst}"),
+        format!(" {c}◉{rst}"),
+        format!("{m}─────▸{rst}"),
+        format!(" {c}◉{rst}"),
+    ];
+    for p in &parts {
+        write!(out, "{p}").ok();
+        out.flush().ok();
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    println!();
+    std::thread::sleep(std::time::Duration::from_millis(30));
+    println!("  {m}       └─────▸{c} ◉{rst}");
+    std::thread::sleep(std::time::Duration::from_millis(30));
+    println!("  {m}              └─────▸{c} ◉{rst}");
+    println!();
+}
+
+/// Animate a wizard step as a causal graph node
+fn animate_wizard_step(step_num: usize, name: &str, result: &str, is_last: bool) {
+    use std::io::Write;
+    let mut out = std::io::stdout();
+    let m = "\x1b[35m";
+    let bm = "\x1b[1;95m";
+    let g = "\x1b[32m";
+    let c = "\x1b[36m";
+    let rst = "\x1b[0m";
+
+    // Connecting edge from previous node
+    if step_num > 0 {
+        for _ in 0..2 {
+            write!(out, "  {m}     │{rst}\n").ok();
+            out.flush().ok();
+            std::thread::sleep(std::time::Duration::from_millis(25));
+        }
+    }
+
+    // Node box top
+    write!(out, "  {m}╭────────────╮{rst}\n").ok();
+    out.flush().ok();
+    std::thread::sleep(std::time::Duration::from_millis(20));
+
+    // Node content
+    write!(out, "  {m}│{rst} {bm}{name:<10}{rst} {m}│{rst}").ok();
+    out.flush().ok();
+    std::thread::sleep(std::time::Duration::from_millis(30));
+
+    // Animated edge to result
+    for ch in "───▸ ".chars() {
+        write!(out, "{c}{ch}{rst}").ok();
+        out.flush().ok();
+        std::thread::sleep(std::time::Duration::from_millis(12));
+    }
+
+    // Result
+    writeln!(out, "{g}{result} ✓{rst}").ok();
+    out.flush().ok();
+
+    // Node box bottom
+    if is_last {
+        write!(out, "  {m}╰────────────╯{rst}\n").ok();
+    } else {
+        write!(out, "  {m}╰──────┬─────╯{rst}\n").ok();
+    }
+    out.flush().ok();
 }
 
 /// Render text as liquid chrome per-character gradient (violet metallic)
