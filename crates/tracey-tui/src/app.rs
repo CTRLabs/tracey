@@ -363,10 +363,10 @@ impl App {
     }
 
     fn render_header(&self, f: &mut Frame, area: Rect) {
-        let mut spans = vec![
-            Span::styled(" ◆ ", Style::default().fg(theme::CHROME[0]).bg(theme::CHROME[8])),
-            Span::styled("tracey ", Style::default().fg(theme::CHROME[2]).bg(theme::CHROME[8]).add_modifier(Modifier::BOLD)),
-        ];
+        let mut spans = vec![Span::styled(" ◆ ", Style::default().fg(theme::CHROME[0]).bg(theme::CHROME[7]))];
+        // Shimmer "tracey" text in the header (liquid chrome sweep effect)
+        spans.extend(crate::shimmer::shimmer_spans("tracey"));
+        spans.push(Span::raw(" "));
 
         // Model (chrome bright)
         if !self.model_name.is_empty() {
@@ -571,14 +571,15 @@ impl App {
     }
 
     fn render_input(&self, f: &mut Frame, area: Rect) {
-        let (display_text, text_style) = if self.is_processing {
-            // Animated causal graph trace (our signature animation)
+        let (display_text, text_style, use_shimmer) = if self.is_processing {
+            // Use shimmer animation (like Codex) + graph trace
             let frame = crate::art::GRAPH_TRACE_FRAMES[self.spinner_state % crate::art::GRAPH_TRACE_FRAMES.len()];
-            (format!("{frame}  {}", self.status), Style::default().fg(theme::CHROME[3]))
+            let elapsed = std::time::Instant::now();
+            (format!("{frame}  {}", self.status), Style::default().fg(theme::CHROME[3]), true)
         } else if self.input.is_empty() {
-            ("ask tracey anything...".into(), Style::default().fg(theme::DIM))
+            ("ask tracey anything...".into(), Style::default().fg(theme::DIM), false)
         } else {
-            (self.input.clone(), Style::default().fg(theme::FG))
+            (self.input.clone(), Style::default().fg(theme::FG), false)
         };
 
         let border_style = if self.is_processing {
@@ -596,8 +597,15 @@ impl App {
                 Style::default().fg(theme::VIOLET_BRIGHT),
             ));
 
-        let input = Paragraph::new(Span::styled(format!(" {display_text}"), text_style))
-            .block(block);
+        let input_content = if use_shimmer {
+            // Shimmer effect on the graph trace (like Codex's thinking shimmer)
+            let mut spans = vec![Span::raw(" ")];
+            spans.extend(crate::shimmer::shimmer_spans(&display_text));
+            Line::from(spans)
+        } else {
+            Line::from(Span::styled(format!(" {display_text}"), text_style))
+        };
+        let input = Paragraph::new(input_content).block(block);
 
         f.render_widget(input, area);
 
