@@ -573,7 +573,7 @@ impl App {
     fn render_input(&self, f: &mut Frame, area: Rect) {
         let (display_text, text_style, use_shimmer) = if self.is_processing {
             // Use shimmer animation (like Codex) + graph trace
-            let frame = crate::art::GRAPH_TRACE_FRAMES[self.spinner_state % crate::art::GRAPH_TRACE_FRAMES.len()];
+            let frame = crate::art::TRACE_FRAMES[self.spinner_state % crate::art::TRACE_FRAMES.len()];
             let elapsed = std::time::Instant::now();
             (format!("{frame}  {}", self.status), Style::default().fg(theme::CHROME[3]), true)
         } else if self.input.is_empty() {
