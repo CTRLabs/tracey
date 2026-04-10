@@ -1,6 +1,7 @@
 pub mod config;
 pub mod credentials;
 pub mod instruction_files;
+pub mod interactive;
 pub mod oauth;
 pub mod setup;
 
