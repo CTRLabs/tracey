@@ -572,9 +572,9 @@ impl App {
 
     fn render_input(&self, f: &mut Frame, area: Rect) {
         let (display_text, text_style) = if self.is_processing {
-            let spinners = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-            let s = spinners[self.spinner_state % spinners.len()];
-            (format!("{s} {}", self.status), Style::default().fg(theme::VIOLET_BRIGHT))
+            // Animated causal graph trace (our signature animation)
+            let frame = crate::art::GRAPH_TRACE_FRAMES[self.spinner_state % crate::art::GRAPH_TRACE_FRAMES.len()];
+            (format!("{frame}  {}", self.status), Style::default().fg(theme::CHROME[3]))
         } else if self.input.is_empty() {
             ("ask tracey anything...".into(), Style::default().fg(theme::DIM))
         } else {

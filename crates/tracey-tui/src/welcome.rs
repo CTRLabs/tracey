@@ -67,16 +67,19 @@ fn render_logo(f: &mut Frame, area: Rect) {
 
     lines.push(Line::from(""));
 
-    // Causal graph trace art
-    lines.push(Line::from(vec![
-        Span::styled("        ◉", Style::default().fg(CHROME[2])),
-        Span::styled("──╌╌──▸", Style::default().fg(CHROME[6])),
-        Span::styled(" ◉", Style::default().fg(CHROME[2])),
-        Span::styled("──╌╌──▸", Style::default().fg(CHROME[6])),
-        Span::styled(" ◉", Style::default().fg(CHROME[2])),
-        Span::raw("     "),
-        Span::styled("tracing causal connections", Style::default().fg(CHROME[3]).add_modifier(Modifier::ITALIC)),
-    ]));
+    // Braille causal graph emblem (like Hermes's caduceus)
+    let emblem_colors = [
+        CHROME[0], CHROME[0], CHROME[1], CHROME[1], CHROME[2],
+        CHROME[2], CHROME[3], CHROME[3], CHROME[4], CHROME[4],
+        CHROME[5], CHROME[5], CHROME[6], CHROME[7], CHROME[7],
+    ];
+    for (i, art_line) in crate::art::CAUSAL_GRAPH_EMBLEM.iter().enumerate() {
+        let color = emblem_colors.get(i).copied().unwrap_or(CHROME[5]);
+        lines.push(Line::from(Span::styled(
+            format!("    {art_line}"),
+            Style::default().fg(color),
+        )));
+    }
 
     f.render_widget(Paragraph::new(lines), area);
 }
