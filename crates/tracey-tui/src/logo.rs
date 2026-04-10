@@ -1,99 +1,77 @@
 use crate::theme::{ANSI_CHROME, ANSI_DIM, ANSI_RESET};
 use std::time::Duration;
 
-const LOGO_LINES: [&str; 6] = [
-    "  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗",
-    "  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝",
-    "     ██║   ██████╔╝███████║██║     █████╗   ╚████╔╝ ",
-    "     ██║   ██╔══██╗██╔══██║██║     ██╔══╝    ╚██╔╝  ",
-    "     ██║   ██║  ██║██║  ██║╚██████╗███████╗   ██║   ",
-    "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
-];
+const S: &str = "\x1b[38;5;252m";  // silver
+const L: &str = "\x1b[38;5;183m";  // lavender
+const D: &str = "\x1b[38;5;97m";   // deep
+const V: &str = "\x1b[38;5;135m";  // violet
+const RST: &str = "\x1b[0m";
 
-// Liquid chrome: silver at top → violet at bottom (metallic → colored)
-const LINE_COLORS: [&str; 6] = [
-    "\x1b[38;5;252m",  // bright silver
-    "\x1b[38;5;251m",  // silver
-    "\x1b[38;5;189m",  // silver-lavender
-    "\x1b[38;5;183m",  // lavender
-    "\x1b[38;5;141m",  // light violet
-    "\x1b[38;5;135m",  // violet
-];
-
-/// Print the logo with per-LINE liquid chrome gradient
+/// Print the causal graph logo (no block chars, no braille)
 pub fn print_chrome_logo() {
     println!();
-    for (i, line) in LOGO_LINES.iter().enumerate() {
-        println!("{}{line}{ANSI_RESET}", LINE_COLORS[i]);
+    let lines = [
+        format!("               {S}╭───────╮{RST}"),
+        format!("        {S}╭──────│{RST} {L}parse{RST} {S}│──────╮{RST}"),
+        format!("        {D}│{RST}      {S}╰───────╯{RST}      {D}│{RST}"),
+        format!("   {S}╭────▼───╮{RST}       {S}╭────▼───╮{RST}"),
+        format!("   {S}│{RST} {L}reason{RST} {S}│{RST}       {S}│{RST}  {L}act{RST}   {S}│{RST}"),
+        format!("   {S}╰────┬───╯{RST}       {S}╰────┬───╯{RST}"),
+        format!("        {D}╰──────╮verify╭──────╯{RST}"),
+        format!("               {D}╰──┬───╯{RST}"),
+    ];
+    for line in &lines {
+        println!("{line}");
     }
     println!();
-    let c2 = ANSI_CHROME[2]; // chrome light
-    let c6 = ANSI_CHROME[6]; // deep
-    println!("  {c2}    ◉{c6}──╌╌──▸{c2} ◉{c6}──╌╌──▸{c2} ◉{ANSI_RESET}");
-    println!("  {c6}              └──╌╌──▸{c2} ◉{ANSI_RESET}");
+    println!("     {S}\x1b[1mT  R  A  C  E  Y{RST}");
+    println!("  {L}tracing causal connections{RST}");
     println!();
 }
 
-/// Print startup banner (no animation)
+/// Print startup banner
 pub fn print_startup_banner() {
     print_chrome_logo();
-    let c3 = ANSI_CHROME[3];
-    println!("  {c3}tracing causal connections{ANSI_RESET}");
-    println!("  {ANSI_DIM}v{}{ANSI_RESET}", env!("CARGO_PKG_VERSION"));
+    println!("  {ANSI_DIM}v{}{RST}", env!("CARGO_PKG_VERSION"));
     println!();
 }
 
-/// Animated startup — logo traces in line by line
+/// Animated startup — graph nodes trace in one by one
 pub async fn animate_startup() {
     print!("\x1b[?25l"); // hide cursor
     print!("\x1b[2J\x1b[H"); // clear
 
-    let c2 = ANSI_CHROME[2];
-    let c6 = ANSI_CHROME[6];
+    let frames = [
+        format!("               {S}╭───────╮{RST}"),
+        format!("        {S}╭──────│{RST} {L}parse{RST} {S}│──────╮{RST}"),
+        format!("        {D}│{RST}      {S}╰───────╯{RST}      {D}│{RST}"),
+        format!("   {S}╭────▼───╮{RST}       {S}╭────▼───╮{RST}"),
+        format!("   {S}│{RST} {L}reason{RST} {S}│{RST}       {S}│{RST}  {L}act{RST}   {S}│{RST}"),
+        format!("   {S}╰────┬───╯{RST}       {S}╰────┬───╯{RST}"),
+        format!("        {D}╰──────╮verify╭──────╯{RST}"),
+        format!("               {D}╰──┬───╯{RST}"),
+    ];
 
-    // Phase 1: Graph nodes trace in (300ms)
     println!();
-    print!("  {c2}    ◉{ANSI_RESET}");
-    flush();
-    tokio::time::sleep(Duration::from_millis(60)).await;
-
-    print!("{c6}──╌╌──▸{ANSI_RESET}");
-    flush();
-    tokio::time::sleep(Duration::from_millis(60)).await;
-
-    print!(" {c2}◉{ANSI_RESET}");
-    flush();
-    tokio::time::sleep(Duration::from_millis(60)).await;
-
-    print!("{c6}──╌╌──▸{ANSI_RESET}");
-    flush();
-    tokio::time::sleep(Duration::from_millis(60)).await;
-
-    println!(" {c2}◉{ANSI_RESET}");
-    println!("  {c6}              └──╌╌──▸{c2} ◉{ANSI_RESET}");
-    tokio::time::sleep(Duration::from_millis(80)).await;
-
-    // Phase 2: Logo lines appear with gradient (240ms)
-    println!();
-    for (i, line) in LOGO_LINES.iter().enumerate() {
-        println!("{}{line}{ANSI_RESET}", LINE_COLORS[i]);
-        tokio::time::sleep(Duration::from_millis(40)).await;
+    for frame in &frames {
+        println!("{frame}");
+        tokio::time::sleep(Duration::from_millis(60)).await;
     }
 
-    // Phase 3: Tagline
     println!();
-    let c3 = ANSI_CHROME[3];
-    println!("  {c3}tracing causal connections{ANSI_RESET}");
-    println!("  {ANSI_DIM}v{}{ANSI_RESET}", env!("CARGO_PKG_VERSION"));
+    // Typewriter effect for the name
+    for ch in "T  R  A  C  E  Y".chars() {
+        print!("{S}\x1b[1m{ch}{RST}");
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+        tokio::time::sleep(Duration::from_millis(40)).await;
+    }
+    println!();
+    println!("  {L}tracing causal connections{RST}");
+    println!("  {ANSI_DIM}v{}{RST}", env!("CARGO_PKG_VERSION"));
     println!();
 
     print!("\x1b[?25h"); // show cursor
-    tokio::time::sleep(Duration::from_millis(100)).await;
-}
-
-fn flush() {
-    use std::io::Write;
-    std::io::stdout().flush().ok();
+    tokio::time::sleep(Duration::from_millis(200)).await;
 }
 
 pub struct Spinner {
@@ -103,29 +81,14 @@ pub struct Spinner {
 
 impl Spinner {
     pub fn thinking() -> Self {
-        Self {
-            frames: vec!["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-            index: 0,
-        }
+        Self { frames: crate::art::GRAPH_TRACE_FRAMES.to_vec(), index: 0 }
     }
-
-    pub fn tracing() -> Self {
-        Self {
-            frames: vec![
-                "◉╌", "◉╌╌", "◉╌╌╌", "◉╌╌╌▸",
-                "◉╌╌╌▸◉", "◉╌╌╌▸◉╌", "◉╌╌╌▸◉╌╌▸",
-            ],
-            index: 0,
-        }
+    pub fn tool_call() -> Self {
+        Self { frames: crate::art::PULSE_FRAMES.to_vec(), index: 0 }
     }
-
-    pub fn causify() -> Self {
-        Self {
-            frames: vec!["◇", "◈", "◆", "◈", "◇", "○", "●", "○"],
-            index: 0,
-        }
+    pub fn verifying() -> Self {
+        Self { frames: crate::art::VERIFY_FRAMES.to_vec(), index: 0 }
     }
-
     pub fn next(&mut self) -> &str {
         let frame = self.frames[self.index];
         self.index = (self.index + 1) % self.frames.len();

@@ -33,50 +33,58 @@ pub fn render_welcome(f: &mut Frame, area: Rect, info: &WelcomeInfo) {
     render_welcome_message(f, chunks[3]);
 }
 
-/// Render the logo with per-LINE 256-color gradient + braille emblem
+/// Render the causal graph logo (box-drawing only — no block/braille chars)
 fn render_logo(f: &mut Frame, area: Rect) {
-    // Silver → violet gradient (liquid chrome: metallic at top, colored at bottom)
-    let line_colors = [
-        CHROME[0],  // bright silver
-        CHROME[1],  // silver
-        CHROME[2],  // silver-lavender
-        CHROME[3],  // lavender
-        CHROME[4],  // light violet
-        CHROME[5],  // core violet
+    let s = CHROME[0]; // silver for structure
+    let l = CHROME[3]; // lavender for labels
+    let d = CHROME[6]; // deep for edges
+
+    let lines: Vec<Line> = vec![
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("               ╭───────╮", Style::default().fg(s)),
+        ]),
+        Line::from(vec![
+            Span::styled("        ╭──────│", Style::default().fg(s)),
+            Span::styled(" parse ", Style::default().fg(l).add_modifier(Modifier::BOLD)),
+            Span::styled("│──────╮", Style::default().fg(s)),
+        ]),
+        Line::from(vec![
+            Span::styled("        │      ╰───────╯      │", Style::default().fg(d)),
+        ]),
+        Line::from(vec![
+            Span::styled("   ╭────▼───╮", Style::default().fg(s)),
+            Span::raw("       "),
+            Span::styled("╭────▼───╮", Style::default().fg(s)),
+        ]),
+        Line::from(vec![
+            Span::styled("   │", Style::default().fg(s)),
+            Span::styled(" reason ", Style::default().fg(l).add_modifier(Modifier::BOLD)),
+            Span::styled("│", Style::default().fg(s)),
+            Span::raw("       "),
+            Span::styled("│", Style::default().fg(s)),
+            Span::styled("  act   ", Style::default().fg(l).add_modifier(Modifier::BOLD)),
+            Span::styled("│", Style::default().fg(s)),
+        ]),
+        Line::from(vec![
+            Span::styled("   ╰────┬───╯       ╰────┬───╯", Style::default().fg(d)),
+        ]),
+        Line::from(vec![
+            Span::styled("        ╰──────╮verify╭──────╯", Style::default().fg(d)),
+        ]),
+        Line::from(vec![
+            Span::styled("               ╰──┬───╯", Style::default().fg(d)),
+        ]),
+        Line::from(""),
+        Line::from(Span::styled(
+            "     T  R  A  C  E  Y",
+            Style::default().fg(CHROME[0]).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(Span::styled(
+            "  tracing causal connections",
+            Style::default().fg(CHROME[3]),
+        )),
     ];
-
-    let logo_text = [
-        " TRACEY",
-        " ══════",
-    ];
-
-    let mut lines: Vec<Line> = Vec::new();
-    lines.push(Line::from(""));
-
-    // Simple clean text logo (block chars garble in some terminals)
-    lines.push(Line::from(Span::styled(
-        " T R A C E Y",
-        Style::default().fg(CHROME[0]).add_modifier(Modifier::BOLD),
-    )));
-    lines.push(Line::from(Span::styled(
-        " ═══════════════",
-        Style::default().fg(CHROME[3]),
-    )));
-    lines.push(Line::from(""));
-
-    // Braille causal graph emblem
-    let emblem_colors = [
-        CHROME[0], CHROME[0], CHROME[1], CHROME[2], CHROME[2],
-        CHROME[3], CHROME[3], CHROME[4], CHROME[4], CHROME[5],
-        CHROME[5], CHROME[6], CHROME[7], CHROME[7], CHROME[8],
-    ];
-    for (i, art_line) in crate::art::CAUSAL_GRAPH_EMBLEM.iter().enumerate() {
-        let color = emblem_colors.get(i).copied().unwrap_or(CHROME[5]);
-        lines.push(Line::from(Span::styled(
-            format!("  {art_line}"),
-            Style::default().fg(color),
-        )));
-    }
 
     f.render_widget(Paragraph::new(lines), area);
 }

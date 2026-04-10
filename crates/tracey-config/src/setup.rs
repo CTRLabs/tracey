@@ -23,27 +23,34 @@ impl SetupWizard {
         Self::detect_existing_config();
 
         // Quick import: if Claude Code or Codex credentials exist, offer one-click setup
-        if let Some(quick) = Self::try_quick_import()? {
+        if let Some(_) = Self::try_quick_import()? {
             return Ok(());
         }
 
-        // Step 1: Provider
-        crate::interactive::print_section_header(1, 3, "Provider");
-        let provider = Self::select_provider()?;
-        crate::interactive::animate_step("Provider selected", 1);
+        // The wizard IS a causal graph — each step is a node that animates in
+        println!("  {D}Setting up your causal graph...{RST}");
+        println!();
 
-        // Step 2: API Key
-        crate::interactive::print_section_header(2, 3, "Authentication");
+        // Step 1: Provider node
+        Self::animate_node_start("provider");
+        let provider = Self::select_provider()?;
+        Self::animate_node_complete("provider", &provider.name);
+
+        // Step 2: Auth node
+        Self::animate_node_start("auth");
         let api_key = Self::get_api_key(&provider)?;
         if !api_key.is_empty() {
             Self::test_connection(&provider, &api_key);
         }
-        crate::interactive::animate_step("Authenticated", 2);
+        Self::animate_node_complete("auth", "authenticated");
 
-        // Step 3: Model
-        crate::interactive::print_section_header(3, 3, "Model");
+        // Step 3: Model node
+        Self::animate_node_start("model");
         let model = Self::select_model(&provider)?;
-        crate::interactive::animate_step("Model configured", 3);
+        Self::animate_node_complete("model", &model);
+
+        // Final node: ready
+        Self::animate_final_node();
 
         // Save everything
         Self::save_config(&provider, &api_key, &model)?;
@@ -51,50 +58,107 @@ impl SetupWizard {
         Ok(())
     }
 
+    fn animate_node_start(name: &str) {
+        let mut out = std::io::stdout();
+        use std::io::Write;
+
+        // Edge from previous
+        write!(out, "  {VD}     │{RST}\n").ok();
+        out.flush().ok();
+        std::thread::sleep(std::time::Duration::from_millis(40));
+
+        // Node box top
+        write!(out, "  {V}╭────────╮{RST}\n").ok();
+        out.flush().ok();
+        std::thread::sleep(std::time::Duration::from_millis(30));
+
+        // Node label
+        write!(out, "  {V}│{RST} {VB}{name:<6}{RST} {V}│{RST}───▸ ").ok();
+        out.flush().ok();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+
+        println!("{D}configuring...{RST}");
+
+        // Node box bottom
+        write!(out, "  {V}╰────────╯{RST}\n").ok();
+        out.flush().ok();
+        println!();
+    }
+
+    fn animate_node_complete(name: &str, result: &str) {
+        // Move cursor up to overwrite the "configuring..." line
+        // (This is approximate — we print the completion below)
+        println!();
+        let mut out = std::io::stdout();
+        use std::io::Write;
+
+        write!(out, "  {G}✓{RST} {VB}{name}{RST} ───▸ {LAV}{result}{RST}\n").ok();
+        out.flush().ok();
+        std::thread::sleep(std::time::Duration::from_millis(30));
+    }
+
+    fn animate_final_node() {
+        let mut out = std::io::stdout();
+        use std::io::Write;
+
+        write!(out, "\n  {VD}     │{RST}\n").ok();
+        out.flush().ok();
+        std::thread::sleep(std::time::Duration::from_millis(60));
+
+        write!(out, "  {V}╭────────╮{RST}\n").ok();
+        out.flush().ok();
+        std::thread::sleep(std::time::Duration::from_millis(40));
+
+        write!(out, "  {V}│{RST} {G}{W}ready {RST} {V}│{RST}───▸ ").ok();
+        out.flush().ok();
+        std::thread::sleep(std::time::Duration::from_millis(40));
+
+        println!("{G}◉ tracing causal connections{RST}");
+
+        write!(out, "  {V}╰────────╯{RST}\n").ok();
+        out.flush().ok();
+        println!();
+    }
+
     fn print_header() {
-        // Liquid chrome: silver at top → violet at bottom
-        let colors = [
-            "\x1b[38;5;252m",  // bright silver
-            "\x1b[38;5;251m",  // silver
-            "\x1b[38;5;189m",  // silver-lavender
-            "\x1b[38;5;183m",  // lavender
-            "\x1b[38;5;141m",  // light violet
-            "\x1b[38;5;135m",  // violet
-        ];
-
-        let logo_lines = [
-            "  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗",
-            "  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝",
-            "     ██║   ██████╔╝███████║██║     █████╗   ╚████╔╝ ",
-            "     ██║   ██╔══██╗██╔══██║██║     ██╔══╝    ╚██╔╝  ",
-            "     ██║   ██║  ██║██║  ██║╚██████╗███████╗   ██║   ",
-            "     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝   ",
-        ];
-
-        // Logo with silver→violet gradient
         println!();
-        for (i, line) in logo_lines.iter().enumerate() {
-            println!("{}{line}{RST}", colors[i]);
+
+        // The logo IS a causal graph — shows the reasoning flow
+        let graph_colors = [
+            ("\x1b[38;5;252m", "\x1b[38;5;183m"), // silver node, lavender label
+            ("\x1b[38;5;251m", "\x1b[38;5;141m"),
+            ("\x1b[38;5;189m", "\x1b[38;5;135m"),
+            ("\x1b[38;5;183m", "\x1b[38;5;135m"),
+            ("\x1b[38;5;141m", "\x1b[38;5;97m"),
+        ];
+        let (s, l) = graph_colors[0]; // silver, lavender
+
+        // Animated: each line appears with a small delay
+        let lines = [
+            format!("                    {s}╭───────╮{RST}"),
+            format!("             {s}╭──────│{RST} {l}parse{RST} {s}│──────╮{RST}"),
+            format!("             {s}│{RST}      {s}╰───────╯{RST}      {s}│{RST}"),
+            format!("        {s}╭────▼───╮{RST}            {s}╭────▼───╮{RST}"),
+            format!("        {s}│{RST} {l}reason{RST} {s}│{RST}            {s}│{RST}  {l}act{RST}   {s}│{RST}"),
+            format!("        {s}╰────┬───╯{RST}            {s}╰────┬───╯{RST}"),
+            format!("             {s}│{RST}      {s}╭───────╮{RST}      {s}│{RST}"),
+            format!("             {s}╰──────│{RST}{l}verify{RST} {s}│──────╯{RST}"),
+            format!("                    {s}╰───┬───╯{RST}"),
+            format!("                        {s}│{RST}"),
+            format!("                   {s}╭────▼────╮{RST}"),
+            format!("                   {s}│{RST} {l}resolve{RST} {s}│{RST}"),
+            format!("                   {s}╰─────────╯{RST}"),
+        ];
+
+        for line in &lines {
+            println!("{line}");
+            std::thread::sleep(std::time::Duration::from_millis(25));
         }
-        println!();
 
-        // Braille causal graph emblem (compact version, same technique as Hermes caduceus)
-        let emblem = [
-            ("⠀⠀⠀⣀⣤⣶⣿⣿⣶⣤⣀⠀⠀⠀", "\x1b[38;5;252m"),
-            ("⠀⣠⣾⡿⠋⣿⡟⢿⣿⠙⢿⣷⣄⠀", "\x1b[38;5;189m"),
-            ("⣼⣿⠃⢀⣾⠟⠀⠀⠻⣷⡀⠘⣿⣧", "\x1b[38;5;183m"),
-            ("⠸⣿⣧⡈⢿⣷⣶⣶⣾⡿⢁⣼⣿⠇", "\x1b[38;5;141m"),
-            ("⠀⠀⠉⠛⠿⣶⣤⣤⣶⠿⠛⠉⠀⠀", "\x1b[38;5;135m"),
-        ];
-        for (art, color) in &emblem {
-            println!("  {color}{art}{RST}");
-        }
         println!();
-
-        // Title
-        println!("  {VB}◆{W} Setup Wizard{RST}");
-        println!("  {D}  tracing causal connections{RST}");
-        println!("  {D}  v{}{RST}", env!("CARGO_PKG_VERSION"));
+        println!("        {VB}{W}T  R  A  C  E  Y{RST}");
+        println!("    {D}tracing causal connections{RST}");
+        println!("    {D}v{}{RST}", env!("CARGO_PKG_VERSION"));
         println!();
     }
 
