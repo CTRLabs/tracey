@@ -1,143 +1,108 @@
 # Tracey
 
-**Tracing causal connections.**
+![Tracey running in the terminal](docs/screenshot.png)
 
-```
-  ████████╗██████╗  █████╗  ██████╗███████╗██╗   ██╗
-  ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚██╗ ██╔╝
-     ██║   ██████╔╝███████║██║     █████╗   ╚████╔╝
-     ██║   ██╔══██╗██╔══██║██║     ██╔══╝    ╚██╔╝
-     ██║   ██║  ██║██║  ██║╚██████╗███████╗   ██║
-     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝   ╚═╝
-      ◉──╌╌──▸ ◉──╌╌──▸ ◉
-            └──╌╌──▸ ◉
-```
+A coding agent that keeps a live causal graph of your codebase. Every file it touches, every edit, every bug it finds — all of it becomes a node. Before making a change it queries the graph to see what might break. After, it writes back what actually happened.
 
-A causal-graph-based coding agent. Tracey maintains a live causal graph of your codebase — tracing how files depend on each other, how your edits ripple through the project, and what patterns emerge across sessions. Every decision is inspectable.
+Most coding agents reason in the dark. You give them a task, they flail through the repo, they forget everything the moment the session ends. Tracey keeps track. What calls what, what broke what, what you said you cared about, what patterns it's already seen.
 
-## Why Tracey?
+## what's in the graph
 
-Other coding agents (Claude Code, Codex, Hermes) delegate all reasoning to the LLM. Tracey augments the LLM with an explicit causal graph:
+Four layers:
 
-- **Before every action**: queries the graph to predict impact ("if I edit this function, what might break?")
-- **After every action**: updates the graph with new evidence
-- **Across sessions**: the graph persists and gets smarter over time
-- **Always inspectable**: when something goes wrong, trace the exact causal chain
+- **code** — files, functions, classes, imports, pulled from AST
+- **execution** — actions, errors, observations, added as the agent runs
+- **knowledge** — bugs, solutions, patterns, decisions, extracted from the agent's own reasoning
+- **project** — tasks, constraints, goals, from your messages
 
-## Features
+Edges are typed (`calls`, `imports`, `caused`, `prevented`, `explains`, `resolves`...) and carry a confidence score that decays over time if nobody touches them. Edges from static analysis are trusted more than edges the LLM inferred. The agent won't stampede over uncertain knowledge.
 
-- **Causal Graph Engine** — 4-layer graph (Code / Execution / Knowledge / Project) with confidence-weighted edges, Personalized PageRank for context selection, exponential decay, and contradiction detection
-- **Model Agnostic** — Works with Claude, GPT, Gemini, Ollama, DeepSeek, OpenRouter, or any OpenAI-compatible API
-- **Code Understanding** — Parses your codebase (Rust, Python, TypeScript, Go, Java, C/C++, Ruby, C#) to build a dependency graph from day one
-- **MAGMA Memory** — 4-signal memory retrieval (semantic + temporal + causal + entity) via Reciprocal Rank Fusion
-- **Polished TUI** — Violet-themed terminal UI with gradient ASCII logo, box-drawing message frames, context capacity bar, and animated causal graph
-- **Telegram Bot** — Text streaming with Unicode graph rendering
-- **Hook System** — JSON stdin/stdout protocol with exit code semantics (0=continue, 1=abort, 2=modify)
-- **Skill System** — SKILL.md files with YAML frontmatter for extensibility
-- **SQLite Persistence** — Graph survives between sessions with WAL mode
-- **Edge Provenance** — Every edge tracks its source (StaticAnalysis, GitCoChange, AgentObserved, UserDefined) with confidence capping
-
-## Install
+## install
 
 ```bash
 cargo install --git https://github.com/CTRLabs/tracey tracey-cli
 ```
 
-## Quick Start
+then:
 
 ```bash
-# Configure your LLM provider
-tracey --setup
-
-# Start interactive session
-tracey
-
-# One-shot mode
-tracey "fix the null check in auth.rs"
-
-# Print mode (pipe-friendly)
-echo "explain this codebase" | tracey --print
+tracey --setup       # pick a provider (anthropic, openai, ollama, and ~12 others)
+tracey               # interactive TUI
+tracey "fix the null check in auth.rs"        # one-shot
+echo "explain this codebase" | tracey --print # pipe-friendly
 ```
 
-## How It Works
+## how it works
 
-### The Agent Loop
+Every turn runs an OODA-C loop:
 
-Every turn follows the OODA-C lifecycle:
+1. **observe** — gather what's in context
+2. **orient** — query the graph for relevant nodes via Personalized PageRank
+3. **decide** — the LLM reasons with that graph context injected
+4. **act** — run tools (Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch, Agent, NotebookEdit, Todo)
+5. **causify** — update the graph with what happened, extract knowledge from the reasoning trace
+6. **verify** — check for contradictions, decay stale edges
 
-1. **Observe** — Gather context from the codebase
-2. **Orient** — Query the causal graph (Personalized PageRank → focused 25-node subgraph)
-3. **Decide** — LLM reasons with causal context injected as Markdown-KV
-4. **Act** — Execute tools (Read, Write, Edit, Bash, Glob, Grep)
-5. **Causify** — GraphObserver updates the graph based on tool results
-6. **Verify** — Check graph consistency (DAG invariant, contradictions)
+Every few iterations the agent also runs an introspection pass — it reads its own graph and notices things: repeated actions (stuck loop), contradictions, low-confidence territory. That gets injected back as a self-snapshot so it can course-correct.
 
-### The Causal Graph
+There's a 2D and 3D graph viewer at `http://localhost:3142/graph` and `/graph3d` — the TUI spins these up automatically so you can watch the graph grow in a browser while the agent works.
 
-```
-Code Layer (from AST):     src/auth.rs --[calls]--> src/db.rs
-Execution Layer (traces):  edit:auth.rs --[caused]--> test_failure
-Knowledge Layer (memory):  "JWT validation panics on expired tokens"
-Project Layer (goals):     fix-auth-bug --[blocks]--> deploy-v2
-```
+## the research this is built on
 
-Edges have **provenance** (StaticAnalysis is trusted at 1.0; AgentObserved is capped at 0.7) and **exponential decay** (unused edges fade over sessions).
+The premise that a robust agent has to learn causal structure — not just patterns of correlation — comes from [Richens & Everitt (ICLR 2024)](https://arxiv.org/abs/2402.10877). They prove that any agent whose regret stays bounded across distributional shifts must have implicitly learned an approximate causal model of its environment. For a coding agent, every edit is an intervention and every test is a partial oracle, so that result applies pretty directly: an agent that only chases correlations is going to fail on the first real refactor.
 
-### Architecture
+The graph-based retrieval is closest to [HippoRAG (NeurIPS 2024)](https://arxiv.org/abs/2405.14831), which adapts Personalized PageRank for multi-hop retrieval and reports around 20% improvement over flat retrieval on multi-hop QA. Tracey borrows HippoRAG's node-specificity weighting — `log(N / degree)` on the PPR seeds — so hub nodes like `main.rs` don't drown out the rest of the graph on every query.
 
-16 Rust crates in a Cargo workspace:
+The repo-level graph representation owes a lot to [RepoGraph (ICLR 2025)](https://arxiv.org/abs/2410.14684), which showed that plugging a line-level dependency graph into existing SWE-bench agents lifted their resolve rate by 32.8% on average, and to [LocAgent (ACL 2025)](https://arxiv.org/abs/2503.09089), which hits 92.7% file-level localization accuracy using graph-guided traversal. The multi-layer separation — keeping structural edges apart from execution traces apart from learned knowledge — echoes [MAGMA's](https://arxiv.org/abs/2601.03236) finding that orthogonal graphs for different signal types beat a flat unified memory.
 
-| Crate | Purpose |
-|-------|---------|
-| `tracey-core` | Types, events (SQ/EQ protocol), traits |
+The part where the agent extracts knowledge from its own reasoning and writes it back as persistent nodes is shaped by [TIMG](https://arxiv.org/abs/2603.10600) and [Reflexion (NeurIPS 2023)](https://arxiv.org/abs/2303.11366). The topological ordering of the retrieved subgraph in the prompt — putting cause nodes before effect nodes so the chain-of-thought aligns with the graph — comes from ["Causal Graphs Meet Thoughts"](https://arxiv.org/abs/2501.14892).
+
+**An honest note on "causal."** Right now most of Tracey's edges are structural (from AST parsing) or LLM-inferred (from the agent's reasoning). Neither is interventional in the Pearl sense — they're scaffolding for causal reasoning, not a true structural causal model. Making the edges properly interventional is the next step: mutation testing to promote `Calls` edges to causal ones, treating git commits as interventions, and counterfactual replay. We don't claim what we haven't earned yet.
+
+## architecture
+
+16-crate Cargo workspace:
+
+| crate | what it does |
+|-------|--------------|
+| `tracey-core` | shared types, events, traits |
 | `tracey-config` | TOML config, credential pool, setup wizard |
-| `tracey-llm` | Anthropic + OpenAI providers, smart routing |
-| `tracey-tools` | Tool registry + 6 core tools |
-| `tracey-graph` | 4-layer causal graph, PPR, serialization, verification |
-| `tracey-memory` | MAGMA 4-signal memory with RRF fusion |
-| `tracey-agent` | OODA-C agent loop, graph observer, compaction |
-| `tracey-ast` | Code graph builder (Rust/Python/TS/Go/Java/C/Ruby/C#) |
-| `tracey-search` | Vector index + hybrid search |
-| `tracey-session` | JSONL session persistence |
-| `tracey-sandbox` | Permission model (deny > ask > allow) |
-| `tracey-hooks` | Lifecycle hooks (PreToolCall, PostToolCall, etc.) |
-| `tracey-skills` | SKILL.md loading with YAML frontmatter |
-| `tracey-tui` | Violet-themed ratatui terminal UI |
-| `tracey-telegram` | Telegram bot with text streaming |
-| `tracey-cli` | CLI entry point |
+| `tracey-llm` | Anthropic + OpenAI providers, routing |
+| `tracey-tools` | 11 tools (Read/Write/Edit/Bash/Glob/Grep/WebFetch/WebSearch/Agent/NotebookEdit/Todo) |
+| `tracey-graph` | the 4-layer graph, PPR, persistence, verification |
+| `tracey-memory` | multi-signal memory retrieval |
+| `tracey-agent` | OODA-C loop, observer, introspection, code→graph ingestion |
+| `tracey-ast` | AST parsing for 10 languages |
+| `tracey-search` | vector index + FTS5 hybrid |
+| `tracey-session` | JSONL session store with full-text search |
+| `tracey-sandbox` | permission modes (plan / default / bypass / strict) |
+| `tracey-hooks` | lifecycle hook runner |
+| `tracey-skills` | `SKILL.md` loading |
+| `tracey-tui` | ratatui terminal UI |
+| `tracey-telegram` | Telegram bot |
+| `tracey-cli` | entry point |
 
-## Configuration
+## config
 
-Tracey uses TOML configuration with hierarchy:
+TOML with three levels (global → project → env vars):
 
 ```
-~/.config/tracey/config.toml     (global)
-<project>/.tracey/config.toml    (project)
-Environment variables            (override)
+~/.config/tracey/config.toml
+<your-project>/.tracey/config.toml
+ANTHROPIC_API_KEY, OPENAI_API_KEY, ...
 ```
 
-### TRACEY.md
+Drop a `TRACEY.md` in your project root for per-project instructions, same idea as Claude Code's `CLAUDE.md` or Cursor's rules.
 
-Like Claude Code's CLAUDE.md — project-specific instructions loaded automatically:
+## permission modes
 
-```markdown
-# TRACEY.md
+Set with `/mode` in the TUI:
 
-Always use async Rust patterns.
-Run `cargo test` after every edit.
-The auth module is critical — be careful with changes.
-```
+- **plan** — read-only, agent can explore and propose
+- **default** — normal per-rule resolution (deny > ask > allow)
+- **bypass** — skip every ask prompt, for trusted automation
+- **strict** — ask before anything, even reads
 
-## Research Foundation
-
-Tracey is built on peer-reviewed research:
-
-- **DeepMind (ICLR 2024)**: "Robust agents learn causal world models" — mathematical proof that generalizing agents must learn causal structure
-- **MAGMA (2026)**: Multi-graph memory with 4-signal retrieval — +45% reasoning accuracy over flat memory
-- **Personalized PageRank**: Context-relevant subgraph extraction (from HippoRAG, NeurIPS 2024)
-- **LocAgent (ACL 2025)**: Graph-guided localization — 92.7% file-level accuracy
-- **Causal Abstraction**: Hierarchical causal models for code (Beckers & Halpern, 2019)
-
-## License
+## license
 
 MIT
